@@ -1,0 +1,2 @@
+# ROADMAP (next 10 tasks)
+1. Provide the original project and implement the renderer adapter. 2. Audit shader against SCIENTIFIC_MODEL.md and reclassify features. 3. Build UI prefabs. 4. Record original narration. 5. Device tests on Quest 2/3/3S. 6. Profile and tune lensing. 7. Optional Kerr geodesic lookup-table (precomputed) for accurate shadow/photon region. 8. Add more languages. 9. Educator review and quiz validation by an astrophysicist. 10. Accessibility review with users.

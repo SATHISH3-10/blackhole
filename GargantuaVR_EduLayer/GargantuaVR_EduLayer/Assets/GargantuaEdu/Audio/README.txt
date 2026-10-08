@@ -1,0 +1,1 @@
+Place original or properly licensed narration clips here as <lang>/<audioKey>.wav (keys: l01_safe_distance ... l18_quiz). Move under Resources/GargantuaEdu/Audio/<lang>/ in Unity. Do NOT use film audio or music.

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Gargantua: 360° Relativistic Kerr Black Hole Explorer</title>
+    <meta name="description" content="Ultra-high quality real-time WebGL2 & WebXR 360° VR/AR simulation of Gargantua supermassive Kerr black hole with relativistic geodesic raymarching, gravitational lensing, Doppler beaming, and gravitational time dilation.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='48' fill='%2305070c'/><circle cx='50' cy='50' r='26' fill='%23000'/><circle cx='50' cy='50' r='30' stroke='%23ffaa00' stroke-width='4' fill='none'/><ellipse cx='50' cy='50' rx='45' ry='12' stroke='%23ffd700' stroke-width='5' fill='none'/></svg>">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Fullscreen WebGL2 Rendering Canvas -->
+    <canvas id="gl-canvas"></canvas>
+
+    <!-- Floating Quick Access Controls (Always visible in Cinema Mode) -->
+    <div class="floating-quick-bar interactive">
+        <button class="btn quick-btn infall-btn" id="btn-infall-dive" title="Start 360° Infall Plunge Into Black Hole (Press F)">🚀 Fall Into Black Hole (VR 360°)</button>
+        <button class="btn quick-btn" id="btn-cinema-toggle" title="Toggle Cinema / Minimal Mode (Press H)">👁️ Cinema View</button>
+        <button class="btn quick-btn active" id="btn-quick-visor" title="Toggle Astronaut Helmet Visor (Press V)">🧑‍🚀 Helmet Eye POV</button>
+        <button class="btn quick-btn vr-btn" id="btn-webxr-vr" title="Enter WebXR 3D VR (Meta Quest / Headset)">🥽 WebXR VR</button>
+        <button class="btn quick-btn ar-btn" id="btn-gyro-ar" title="Toggle 360° Mobile Gyro Look">📱 360° Gyro AR</button>
+    </div>
+
+    <!-- Sci-Fi HUD Overlay UI -->
+    <div class="ui-overlay" id="main-hud">
+        <!-- Top Navigation / Header -->
+        <header class="top-header">
+            <div class="title-container glass-panel interactive" style="padding: 10px 18px;">
+                <h1>GARGANTUA 360°</h1>
+                <p>KERR SPACETIME RELATIVISTIC GEODESIC RAYMARCHER</p>
+            </div>
+
+            <!-- Live Gravitational Time Dilation HUD -->
+            <div class="time-dilation-hud glass-panel interactive">
+                <div class="dilation-stat">
+                    <span class="label">Gravitational Time Dilation</span>
+                    <span class="value" id="telemetry-dilation">1 Hour Here = 7.1 Earth Years</span>
+                </div>
+                <div class="dilation-stat" style="border-left: 1px solid rgba(255,255,255,0.1); padding-left: 14px;">
+                    <span class="label">Local Mission Clock</span>
+                    <span class="sub" id="clock-observer">00:00 Local</span>
+                </div>
+                <div class="dilation-stat" style="border-left: 1px solid rgba(255,255,255,0.1); padding-left: 14px;">
+                    <span class="label">Earth Time Elapsed</span>
+                    <span class="value" id="clock-earth" style="color: var(--accent-cyan);">+0.00 Years</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Middle Workspace: Controls & Telemetry -->
+        <main class="middle-layout">
+            <!-- Left Sidebar: Physics & Rendering Controls -->
+            <aside class="control-sidebar glass-panel interactive">
+                <!-- Section 0: 360° AR/VR & Camera Modes -->
+                <div class="section-title">
+                    <span>0. 360° AR / VR Modes</span>
+                    <span class="badge pc">VR / AR</span>
+                </div>
+                <div class="control-group">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                        <button class="btn active" id="btn-mode-orbit">🛰️ Orbit Cam</button>
+                        <button class="btn" id="btn-mode-pov">🧑‍🚀 360° POV</button>
+                    </div>
+                </div>
+                <div class="toggle-row">
+                    <span>Astronaut Visor HUD</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-helmet-visor" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Section 1: Black Hole Fundamental Properties -->
+                <div class="section-title">
+                    <span>1. Spacetime Parameters</span>
+                    <span class="badge pc">PC</span>
+                </div>
+                <div class="control-group">
+                    <div class="control-label-row">
+                        <span>Kerr Spin (a* = a/M)</span>
+                        <span class="control-val" id="slider-spin-val">0.998</span>
+                    </div>
+                    <input type="range" id="slider-spin" min="0" max="0.999" step="0.001" value="0.998">
+                </div>
+                <div class="control-group">
+                    <div class="control-label-row">
+                        <span>Observer Distance (rg)</span>
+                        <span class="control-val" id="slider-dist-val">20.5 rg</span>
+                    </div>
+                    <input type="range" id="slider-dist" min="1.5" max="80" step="0.5" value="20.5">
+                </div>
+
+                <!-- Section 2: Accretion Disk Physics -->
+                <div class="section-title">
+                    <span>2. Accretion Disk</span>
+                    <span class="badge pm">PM</span>
+                </div>
+                <div class="control-group">
+                    <div class="control-label-row">
+                        <span>Disk Brightness</span>
+                        <span class="control-val" id="slider-brightness-val">1.8</span>
+                    </div>
+                    <input type="range" id="slider-brightness" min="0" max="4.0" step="0.1" value="1.8">
+                </div>
+                <div class="control-group">
+                    <div class="control-label-row">
+                        <span>Scale Height (Thickness)</span>
+                        <span class="control-val" id="slider-thickness-val">0.18 rg</span>
+                    </div>
+                    <input type="range" id="slider-thickness" min="0.01" max="0.6" step="0.01" value="0.18">
+                </div>
+                <div class="control-group">
+                    <div class="control-label-row">
+                        <span>Peak Temperature (K)</span>
+                        <span class="control-val" id="slider-temp-val">7500 K</span>
+                    </div>
+                    <input type="range" id="slider-temp" min="2000" max="18000" step="250" value="7500">
+                </div>
+
+                <!-- Section 3: Relativistic Toggles -->
+                <div class="section-title">
+                    <span>3. Relativistic Effects</span>
+                    <span class="badge pc">PC / PM</span>
+                </div>
+                <div class="toggle-row">
+                    <span>Kerr Frame Dragging</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-kerr" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span>Doppler Beaming (I ~ g⁴)</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-doppler" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span>Gravitational Redshift</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-redshift" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span>Photon Ring Cascade</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-photonring" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Section 4: Educational Overlays -->
+                <div class="section-title">
+                    <span>4. Educational Geometry</span>
+                    <span class="badge pc">PC</span>
+                </div>
+                <div class="toggle-row">
+                    <span>Event Horizon (r₊) Wire</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-horizon-wire">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span>Ergosphere Wire</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-ergo-wire">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span>ISCO Inner Ring</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-isco-wire">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Section 5: Render Quality -->
+                <div class="section-title">
+                    <span>5. Raymarch Steps</span>
+                    <span class="badge ar">AR</span>
+                </div>
+                <div class="control-group">
+                    <div class="control-label-row">
+                        <span>Quality Budget</span>
+                        <span class="control-val" id="slider-quality-val">160 Steps</span>
+                    </div>
+                    <input type="range" id="slider-quality" min="48" max="200" step="16" value="160">
+                </div>
+            </aside>
+
+            <!-- Right Sidebar: Live Metric Telemetry -->
+            <aside class="telemetry-sidebar glass-panel interactive">
+                <div class="section-title">
+                    <span>Relativistic Telemetry</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">Mass (M)</span>
+                    <span class="telemetry-val">100,000,000 M☉</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">Horizon (r₊)</span>
+                    <span class="telemetry-val" id="telemetry-horizon">1.063 rg</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">ISCO (r_in)</span>
+                    <span class="telemetry-val" id="telemetry-isco">1.215 rg</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">Prograde Photon Orbit</span>
+                    <span class="telemetry-val" id="telemetry-photon-pro">1.082 rg</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">Retrograde Photon Orbit</span>
+                    <span class="telemetry-val" id="telemetry-photon-retro">3.998 rg</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">Distance</span>
+                    <span class="telemetry-val" id="telemetry-dist">20.5 rg</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">Inclination (i)</span>
+                    <span class="telemetry-val" id="telemetry-incl">81.5°</span>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Bottom Bar: Camera Presets & Actions -->
+        <footer class="bottom-bar">
+            <div class="presets-container glass-panel interactive">
+                <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-right: 6px; align-self: center;">Views:</span>
+                <button class="btn preset-btn" data-preset="infall-dive" style="background: linear-gradient(135deg, rgba(255, 75, 75, 0.4), rgba(255, 170, 0, 0.4)); border-color: #ff5533; font-weight: 800; color: #fff;">🚀 Falling Into Black Hole (360°)</button>
+                <button class="btn preset-btn" data-preset="movie-ref" style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.35), rgba(255, 170, 0, 0.35)); border-color: var(--accent-gold); font-weight: 800; color: #fff;">⭐ Movie Picture View</button>
+                <button class="btn preset-btn" data-preset="disk-skim">🔥 Flame Skim</button>
+                <button class="btn preset-btn" data-preset="dual-photon-arch">👑 Double Photon Arch</button>
+                <button class="btn preset-btn" data-preset="cloud-sea-horizon">🌊 Cloud Sea Horizon</button>
+                <button class="btn preset-btn" data-preset="cloud-dive">⚡ Cloud Dive</button>
+                <button class="btn preset-btn" data-preset="millers">Miller's Planet</button>
+            </div>
+
+            <div style="display: flex; gap: 8px;" class="interactive">
+                <button class="btn active" id="btn-auto-orbit">🔄 Orbit: Auto</button>
+                <button class="btn" id="btn-audio">🔈 Audio: OFF</button>
+                <button class="btn" id="btn-science-info">📖 Scientific Specs</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Educational Scientific Inspector Modal -->
+    <div class="modal" id="science-modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h2>SCIENTIFIC & EDUCATIONAL SPECIFICATIONS</h2>
+                <button class="modal-close-btn" id="modal-close">&times;</button>
+            </div>
+            <div class="spec-grid">
+                <div class="spec-card">
+                    <h3>1. Event Horizon ≠ Black Hole Shadow</h3>
+                    <p>The <strong>event horizon</strong> is the immaterial causal boundary ($r_+ \le 2r_g$) beyond which light cannot escape. The <strong>shadow</strong> is an optical silhouette ($\sim 5.2r_g$) produced by photon capture, appearing 2.6× larger than the horizon coordinate radius.</p>
+                </div>
+                <div class="spec-card">
+                    <h3>2. Kerr Metric & Asymmetry</h3>
+                    <p>Rotating spacetime drags light paths in the direction of spin. Prograde photons orbit significantly closer than retrograde ones ($r_{\text{ph}}^+ \to 1.0 r_g$ vs $r_{\text{ph}}^- \to 4.0 r_g$), producing the iconic asymmetric <strong>D-shaped shadow</strong>.</p>
+                </div>
+                <div class="spec-card">
+                    <h3>3. Accretion Disk Physics</h3>
+                    <p>The accretion disk is <strong>not the black hole itself</strong>. It is external glowing plasma orbiting outside the ISCO boundary. Dissipation follows the Novikov-Thorne relativistic gradient with peak emission at the inner edge.</p>
+                </div>
+                <div class="spec-card">
+                    <h3>4. Doppler Beaming & Redshift</h3>
+                    <p>Relativistic orbital speed causes extreme Doppler boosting ($I_{\text{obs}} = I_{\text{emit}} \cdot g^4$). The approaching disk side is intensely bright and blueshifted, while the receding side is dimmed and redshifted.</p>
+                </div>
+                <div class="spec-card">
+                    <h3>5. Gravitational Lensing Arcs</h3>
+                    <p>Extreme spacetime curvature deflects light from the rear of the disk over the top and beneath the bottom of the black hole, making both faces of the disk visible simultaneously.</p>
+                </div>
+                <div class="spec-card">
+                    <h3>6. Gravitational Time Dilation</h3>
+                    <p>Clocks closer to the event horizon tick dramatically slower: $d\tau/dt = \sqrt{1 - 2r/\Sigma}$. Near Miller's planet orbit ($r \approx 1.05 r_g$), 1 hour equals 7 years on Earth.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ES Module Main Script -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

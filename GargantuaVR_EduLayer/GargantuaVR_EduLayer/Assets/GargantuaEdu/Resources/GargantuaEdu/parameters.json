@@ -1,0 +1,182 @@
+[
+  {
+    "id": "mass",
+    "name": "Mass",
+    "symbol": "M",
+    "unit": "solar masses (Msun)",
+    "min": 1,
+    "max": 10000000000.0,
+    "default": 10000000.0,
+    "classification": "PHYSICAL"
+  },
+  {
+    "id": "spin",
+    "name": "Dimensionless spin",
+    "symbol": "a*",
+    "unit": "dimensionless",
+    "min": 0,
+    "max": 0.998,
+    "default": 0.9,
+    "classification": "APPROXIMATION"
+  },
+  {
+    "id": "obsDist",
+    "name": "Observer distance",
+    "symbol": "r_obs",
+    "unit": "GM/c^2",
+    "min": 10,
+    "max": 1000,
+    "default": 50,
+    "classification": "PHYSICAL"
+  },
+  {
+    "id": "obsInc",
+    "name": "Observer inclination",
+    "symbol": "i_obs",
+    "unit": "degrees",
+    "min": 0,
+    "max": 90,
+    "default": 75,
+    "classification": "PHYSICAL"
+  },
+  {
+    "id": "diskInc",
+    "name": "Disk inclination",
+    "symbol": "i_disk",
+    "unit": "degrees",
+    "min": 0,
+    "max": 90,
+    "default": 0,
+    "classification": "ARTISTIC"
+  },
+  {
+    "id": "rIn",
+    "name": "Inner disk radius",
+    "symbol": "r_in",
+    "unit": "GM/c^2",
+    "min": 1,
+    "max": 20,
+    "default": 0,
+    "classification": "APPROXIMATION"
+  },
+  {
+    "id": "rOut",
+    "name": "Outer disk radius",
+    "symbol": "r_out",
+    "unit": "GM/c^2",
+    "min": 10,
+    "max": 200,
+    "default": 30,
+    "classification": "ARTISTIC"
+  },
+  {
+    "id": "diskBright",
+    "name": "Disk brightness",
+    "symbol": "B",
+    "unit": "relative",
+    "min": 0,
+    "max": 2,
+    "default": 1,
+    "classification": "ARTISTIC"
+  },
+  {
+    "id": "tempVis",
+    "name": "Temperature visualization",
+    "symbol": "T",
+    "unit": "relative / false color",
+    "min": 0,
+    "max": 1,
+    "default": 1,
+    "classification": "APPROXIMATION"
+  },
+  {
+    "id": "lensStrength",
+    "name": "Lensing strength",
+    "symbol": "-",
+    "unit": "fraction of GR",
+    "min": 0,
+    "max": 1,
+    "default": 1,
+    "classification": "APPROXIMATION"
+  },
+  {
+    "id": "starDensity",
+    "name": "Star density",
+    "symbol": "-",
+    "unit": "stars per steradian (relative)",
+    "min": 0,
+    "max": 1,
+    "default": 0.5,
+    "classification": "ARTISTIC"
+  },
+  {
+    "id": "doppler",
+    "name": "Doppler",
+    "symbol": "delta",
+    "unit": "toggle / 0-1",
+    "min": 0,
+    "max": 1,
+    "default": 1,
+    "classification": "APPROXIMATION"
+  },
+  {
+    "id": "redshift",
+    "name": "Redshift",
+    "symbol": "g",
+    "unit": "toggle / 0-1",
+    "min": 0,
+    "max": 1,
+    "default": 1,
+    "classification": "APPROXIMATION"
+  },
+  {
+    "id": "frameDrag",
+    "name": "Frame dragging",
+    "symbol": "omega",
+    "unit": "toggle / 0-1",
+    "min": 0,
+    "max": 1,
+    "default": 0,
+    "classification": "ARTISTIC"
+  },
+  {
+    "id": "timeDilation",
+    "name": "Time dilation",
+    "symbol": "dtau/dt",
+    "unit": "toggle / 0-1",
+    "min": 0,
+    "max": 1,
+    "default": 0,
+    "classification": "ARTISTIC"
+  },
+  {
+    "id": "photonRegion",
+    "name": "Photon region",
+    "symbol": "-",
+    "unit": "toggle",
+    "min": 0,
+    "max": 1,
+    "default": 1,
+    "classification": "APPROXIMATION"
+  },
+  {
+    "id": "shadow",
+    "name": "Shadow",
+    "symbol": "-",
+    "unit": "toggle",
+    "min": 0,
+    "max": 1,
+    "default": 1,
+    "classification": "APPROXIMATION"
+  },
+  {
+    "id": "horizon",
+    "name": "Event horizon",
+    "symbol": "r_+",
+    "unit": "GM/c^2",
+    "min": 0,
+    "max": 1,
+    "default": 1,
+    "classification": "PHYSICAL"
+  }
+]

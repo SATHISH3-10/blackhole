@@ -1,0 +1,473 @@
+{
+  "ui": {
+    "title": "Gargantua VR Educational Mode",
+    "next": "Next",
+    "back": "Back",
+    "pause": "Pause",
+    "resume": "Resume",
+    "reset": "Reset",
+    "replay": "Replay",
+    "labels": "Labels",
+    "simple": "Simple",
+    "advanced": "Advanced",
+    "equation": "Equation",
+    "classification": "Classification",
+    "limitation": "Limitation",
+    "quiz": "Quiz",
+    "teacher": "Teacher Mode",
+    "compare": "Compare Models",
+    "safe": "Return to Safe Distance",
+    "recenter": "Recenter",
+    "disclaimer": "The visual effect is an educational approximation unless a full relativistic renderer has actually been implemented."
+  },
+  "classifications": {
+    "PHYSICAL": "Physically calculated",
+    "APPROXIMATION": "Physically motivated approximation",
+    "ARTISTIC": "Artistic representation"
+  },
+  "labels": {
+    "EVENT_HORIZON": {
+      "title": "Event horizon",
+      "simple": "The point of no return: nothing inside can send light or signals out to a distant observer.",
+      "advanced": "Causal boundary of the region from which no future-directed signal reaches infinity. Kerr: r_+ = GM/c^2 (1 + sqrt(1 - a*^2)).",
+      "equation": "r_+ = GM/c^2 (1+sqrt(1-a*^2)); Schwarzschild r_s = 2GM/c^2",
+      "classification": "PHYSICAL",
+      "limitation": "Not a solid surface; depiction is schematic and coordinate-dependent."
+    },
+    "SHADOW": {
+      "title": "Black-hole shadow",
+      "simple": "The dark patch you see: light paths that fall into the hole leave that part of the sky dark.",
+      "advanced": "Apparent region of the observer's sky where backward-traced rays terminate on the horizon. Larger than the horizon. Schwarzschild: critical impact parameter b_c = 3*sqrt(3) GM/c^2.",
+      "equation": "b_c = 3*sqrt(3) GM/c^2 (Schwarzschild only)",
+      "classification": "APPROXIMATION",
+      "limitation": "Kerr shadow is slightly flattened and offset; the renderer outline is approximate."
+    },
+    "ACCRETION_DISK": {
+      "title": "Accretion disk",
+      "simple": "A flat swirl of hot gas orbiting outside the black hole. It is not the black hole.",
+      "advanced": "Matter in near-circular orbits losing angular momentum; thin-disk temperature T ~ r^(-3/4). Inner edge near the ISCO.",
+      "equation": "T(r) ~ r^(-3/4) (far from the inner edge)",
+      "classification": "ARTISTIC",
+      "limitation": "Simplified; no magnetohydrodynamic simulation."
+    },
+    "PHOTON_REGION": {
+      "title": "Photon region",
+      "simple": "Where light can circle the hole on unstable orbits, creating a bright ring-like edge.",
+      "advanced": "Kerr has a region of spherical photon orbits with radii depending on inclination, not one shell. Schwarzschild photon sphere: r_ph = 3GM/c^2.",
+      "equation": "r_ph = 3GM/c^2 (Schwarzschild only)",
+      "classification": "APPROXIMATION",
+      "limitation": "Drawn as a ring approximation, not the exact Kerr photon region."
+    },
+    "LENSING": {
+      "title": "Gravitational lensing",
+      "simple": "Gravity bends light, so we can see the far side of the disk bent over the top of the hole.",
+      "advanced": "Null geodesics curve in curved spacetime. Weak-field deflection angle = 4GM/(c^2 b).",
+      "equation": "alpha = 4GM/(c^2 b) (weak field)",
+      "classification": "APPROXIMATION",
+      "limitation": "Strong-field deflection in the app is approximated unless geodesics are integrated."
+    },
+    "DOPPLER": {
+      "title": "Doppler shift",
+      "simple": "Gas moving toward you looks bluer, gas moving away looks redder.",
+      "advanced": "Frequency ratio g = 1/(gamma (1 - beta cos theta)), theta from motion to line of sight.",
+      "equation": "g = 1/(gamma(1 - beta cos theta))",
+      "classification": "APPROXIMATION",
+      "limitation": "Not all red/blue seen near a black hole is Doppler; redshift and beaming are separate."
+    },
+    "BEAMING": {
+      "title": "Relativistic beaming",
+      "simple": "Fast-moving gas looks brighter when heading toward you and dimmer when moving away.",
+      "advanced": "Observed specific intensity scales as g^3 (I_nu/nu^3 invariant); bolometric ~ g^4.",
+      "equation": "I_obs = g^3 I_emit",
+      "classification": "APPROXIMATION",
+      "limitation": "Applied with the approximate g factor; separate from color shift."
+    },
+    "REDSHIFT": {
+      "title": "Gravitational redshift",
+      "simple": "Light climbing out of strong gravity arrives with lower frequency.",
+      "advanced": "For a static emitter in Schwarzschild: nu_obs/nu_emit = sqrt(1 - r_s/r). Kerr/orbiting emitters need the full factor.",
+      "equation": "nu_obs/nu_emit = sqrt(1 - 2GM/(c^2 r))",
+      "classification": "APPROXIMATION",
+      "limitation": "Shown as observed-frequency visualization (false color), not literal photon color."
+    },
+    "FRAME_DRAGGING": {
+      "title": "Frame dragging",
+      "simple": "A spinning black hole twists the geometry around it so nothing nearby can stay at rest relative to distant stars.",
+      "advanced": "Inertial frames are dragged with angular velocity omega. Kerr equatorial: omega = 2GJ r / ((r^2+a^2)^2 - Delta a^2 sin^2 theta). Weak field: omega = 2GJ/(c^2 r^3).",
+      "equation": "omega = 2GJ/(c^2 r^3) (weak field)",
+      "classification": "PHYSICAL",
+      "limitation": "Visualization is an analogy; space is not literally flowing."
+    },
+    "ERGOSPHERE": {
+      "title": "Ergosphere",
+      "simple": "A region outside the horizon where standing still is impossible; everything is dragged around.",
+      "advanced": "Region between r_+ and r_E = GM/c^2 (1 + sqrt(1 - a*^2 cos^2 theta)). Equatorial r_E = 2GM/c^2.",
+      "equation": "r_E = GM/c^2 (1+sqrt(1-a*^2 cos^2 theta))",
+      "classification": "PHYSICAL",
+      "limitation": "Outer boundary exact in Boyer-Lindquist coordinates; depiction schematic."
+    },
+    "TIME_DILATION": {
+      "title": "Time dilation",
+      "simple": "Clocks at different places or speeds tick at different rates. Time does not simply 'stop' at the horizon.",
+      "advanced": "Static observer: dtau/dt = sqrt(1 - r_s/r) relative to infinity. An infalling observer crosses the horizon in finite proper time.",
+      "equation": "dtau/dt = sqrt(1 - 2GM/(c^2 r))",
+      "classification": "ARTISTIC",
+      "limitation": "Conceptual visualization only."
+    }
+  },
+  "lessons": [
+    {
+      "id": "L01_SAFE_DISTANCE",
+      "title": "Safe observation distance",
+      "simple": "You are watching from a safe distance. Nothing here can hurt you.",
+      "advanced": "Observer at r_obs >> r_+. All views are static; no forced motion.",
+      "labels": [],
+      "durationSec": 25,
+      "classification": "ARTISTIC",
+      "audioKey": "l01_safe_distance"
+    },
+    {
+      "id": "L02_MASS",
+      "title": "Mass",
+      "simple": "A black hole's gravity depends on its mass. Mass sets the size of everything else.",
+      "advanced": "Characteristic length GM/c^2; r_s = 2GM/c^2 for spin 0. 1 Msun gives r_s of about 2.95 km.",
+      "labels": [],
+      "durationSec": 30,
+      "classification": "PHYSICAL",
+      "audioKey": "l02_mass"
+    },
+    {
+      "id": "L03_SHADOW",
+      "title": "The shadow",
+      "simple": "The dark circle is not the black hole itself. It is a shadow made by bent light.",
+      "advanced": "Rays traced backward from the observer that end on the horizon define the shadow.",
+      "labels": [
+        "SHADOW"
+      ],
+      "durationSec": 35,
+      "classification": "APPROXIMATION",
+      "audioKey": "l03_shadow"
+    },
+    {
+      "id": "L04_SHADOW_VS_HORIZON",
+      "title": "Shadow vs event horizon",
+      "simple": "The shadow looks bigger than the horizon. They are different things.",
+      "advanced": "Schwarzschild shadow radius 3*sqrt(3) GM/c^2 (about 2.6 r_s) versus r_s.",
+      "labels": [
+        "SHADOW",
+        "EVENT_HORIZON"
+      ],
+      "durationSec": 40,
+      "classification": "PHYSICAL",
+      "audioKey": "l04_shadow_vs_horizon"
+    },
+    {
+      "id": "L05_HORIZON",
+      "title": "Event horizon",
+      "simple": "The event horizon is a boundary. Past it, light cannot escape to far-away observers.",
+      "advanced": "Causal boundary; Kerr r_+ = GM/c^2 (1+sqrt(1-a*^2)).",
+      "labels": [
+        "EVENT_HORIZON"
+      ],
+      "durationSec": 35,
+      "classification": "PHYSICAL",
+      "audioKey": "l05_horizon"
+    },
+    {
+      "id": "L06_NO_SURFACE",
+      "title": "No solid surface",
+      "simple": "There is no hard surface at the horizon. You would not hit a wall.",
+      "advanced": "The horizon is a null surface in spacetime, not a material object.",
+      "labels": [
+        "EVENT_HORIZON"
+      ],
+      "durationSec": 25,
+      "classification": "PHYSICAL",
+      "audioKey": "l06_no_surface"
+    },
+    {
+      "id": "L07_DISK",
+      "title": "Accretion disk",
+      "simple": "The glowing ring is hot gas orbiting outside the black hole.",
+      "advanced": "Thin-disk model; hotter inside, cooler outside; orbital direction shown.",
+      "labels": [
+        "ACCRETION_DISK"
+      ],
+      "durationSec": 40,
+      "classification": "ARTISTIC",
+      "audioKey": "l07_disk"
+    },
+    {
+      "id": "L08_FAR_SIDE",
+      "title": "Far side of the disk",
+      "simple": "Light from the far side of the disk is bent over the top of the hole to reach you.",
+      "advanced": "Backward ray tracing from the observer reaches the far-side disk via strongly curved geodesics.",
+      "labels": [
+        "ACCRETION_DISK",
+        "LENSING"
+      ],
+      "durationSec": 35,
+      "classification": "APPROXIMATION",
+      "audioKey": "l08_far_side"
+    },
+    {
+      "id": "L09_LENSING",
+      "title": "Gravitational lensing",
+      "simple": "Gravity bends light. The disk is not bending; its image is displaced.",
+      "advanced": "Null geodesics in curved spacetime; weak-field deflection 4GM/(c^2 b).",
+      "labels": [
+        "LENSING"
+      ],
+      "durationSec": 40,
+      "classification": "APPROXIMATION",
+      "audioKey": "l09_lensing"
+    },
+    {
+      "id": "L10_PHOTON_REGION",
+      "title": "Photon region",
+      "simple": "Some light can orbit the black hole briefly before escaping or falling in.",
+      "advanced": "Schwarzschild r_ph = 3GM/c^2. Kerr has a photon region, not a single shell.",
+      "labels": [
+        "PHOTON_REGION"
+      ],
+      "durationSec": 35,
+      "classification": "APPROXIMATION",
+      "audioKey": "l10_photon_region"
+    },
+    {
+      "id": "L11_SPIN",
+      "title": "Kerr spin",
+      "simple": "Real black holes can spin. Spin is described by a number between 0 and 1.",
+      "advanced": "a* = a/M = cJ/(GM^2), 0 <= a* < 1. Not a rotating solid ball.",
+      "labels": [
+        "ERGOSPHERE"
+      ],
+      "durationSec": 35,
+      "classification": "PHYSICAL",
+      "audioKey": "l11_spin"
+    },
+    {
+      "id": "L12_FRAME_DRAGGING",
+      "title": "Frame dragging",
+      "simple": "A spinning black hole drags the geometry around it along. This picture is an analogy.",
+      "advanced": "omega is the angular velocity of locally non-rotating observers.",
+      "labels": [
+        "FRAME_DRAGGING",
+        "ERGOSPHERE"
+      ],
+      "durationSec": 35,
+      "classification": "ARTISTIC",
+      "audioKey": "l12_frame_dragging"
+    },
+    {
+      "id": "L13_DOPPLER",
+      "title": "Doppler shift",
+      "simple": "Gas moving toward you is bluer, gas moving away is redder.",
+      "advanced": "g = 1/(gamma(1 - beta cos theta)).",
+      "labels": [
+        "DOPPLER"
+      ],
+      "durationSec": 35,
+      "classification": "APPROXIMATION",
+      "audioKey": "l13_doppler"
+    },
+    {
+      "id": "L14_BEAMING",
+      "title": "Relativistic beaming",
+      "simple": "Fast gas moving toward you also looks brighter. That is separate from color.",
+      "advanced": "I_obs = g^3 I_emit.",
+      "labels": [
+        "BEAMING"
+      ],
+      "durationSec": 30,
+      "classification": "APPROXIMATION",
+      "audioKey": "l14_beaming"
+    },
+    {
+      "id": "L15_REDSHIFT",
+      "title": "Gravitational redshift",
+      "simple": "Light leaving strong gravity loses energy and shifts toward red.",
+      "advanced": "nu_obs/nu_emit = sqrt(1 - r_s/r) for static emitters.",
+      "labels": [
+        "REDSHIFT"
+      ],
+      "durationSec": 35,
+      "classification": "APPROXIMATION",
+      "audioKey": "l15_redshift"
+    },
+    {
+      "id": "L16_TIME",
+      "title": "Time dilation",
+      "simple": "Clocks run at different rates in different gravity. Time does not stop at the horizon.",
+      "advanced": "dtau/dt = sqrt(1 - r_s/r) for static observers; infalling crosses horizon in finite proper time.",
+      "labels": [
+        "TIME_DILATION"
+      ],
+      "durationSec": 35,
+      "classification": "ARTISTIC",
+      "audioKey": "l16_time"
+    },
+    {
+      "id": "L17_COMPARE",
+      "title": "Science vs approximation",
+      "simple": "Compare Newtonian gravity, the app's approximation, and a full relativistic model.",
+      "advanced": "Newtonian gravity does not predict lensing of this strength, a shadow, or a photon region.",
+      "labels": [],
+      "durationSec": 40,
+      "classification": "ARTISTIC",
+      "audioKey": "l17_compare"
+    },
+    {
+      "id": "L18_QUIZ",
+      "title": "Quiz",
+      "simple": "Let's check what you learned.",
+      "advanced": "Ten questions covering the concepts above.",
+      "labels": [],
+      "durationSec": 30,
+      "classification": "ARTISTIC",
+      "audioKey": "l18_quiz"
+    }
+  ],
+  "quiz": [
+    {
+      "id": "Q01",
+      "question": "What is the event horizon?",
+      "options": [
+        "A solid surface of the black hole",
+        "A boundary beyond which light cannot escape to a distant observer",
+        "The glowing ring of gas",
+        "The dark region seen in images"
+      ],
+      "correct": 1,
+      "explanation": "It is a causal boundary, not a material surface."
+    },
+    {
+      "id": "Q02",
+      "question": "What is the black-hole shadow?",
+      "options": [
+        "Same as the event horizon",
+        "A dark patch on the sky from captured light rays and strong light bending",
+        "A cloud of dust",
+        "The ergosphere"
+      ],
+      "correct": 1,
+      "explanation": "The shadow is larger than the horizon and depends on observer and spin."
+    },
+    {
+      "id": "Q03",
+      "question": "What is the accretion disk?",
+      "options": [
+        "Part of the black hole",
+        "Hot matter orbiting outside the black hole",
+        "The photon region",
+        "A shell of light"
+      ],
+      "correct": 1,
+      "explanation": "It is ordinary matter outside the hole."
+    },
+    {
+      "id": "Q04",
+      "question": "Why can the far side of the disk appear above the black hole?",
+      "options": [
+        "The disk physically bends upward",
+        "Light from the far side is bent around the hole toward the observer",
+        "A camera trick unrelated to physics",
+        "The hole pushes the disk up"
+      ],
+      "correct": 1,
+      "explanation": "The IMAGE is displaced by gravitational light bending."
+    },
+    {
+      "id": "Q05",
+      "question": "What is gravitational lensing?",
+      "options": [
+        "Light being absorbed by gas",
+        "Bending of light paths by gravity",
+        "Color change due to speed",
+        "Time running slower"
+      ],
+      "correct": 1,
+      "explanation": "Mass curves spacetime and light follows that curvature."
+    },
+    {
+      "id": "Q06",
+      "question": "What is frame dragging?",
+      "options": [
+        "Space flowing like water",
+        "A rotating mass altering the surrounding spacetime so inertial frames are dragged",
+        "The disk spinning",
+        "A rendering effect"
+      ],
+      "correct": 1,
+      "explanation": "Water-flow pictures are analogies only."
+    },
+    {
+      "id": "Q07",
+      "question": "What is Doppler shift?",
+      "options": [
+        "Change in observed frequency due to relative motion",
+        "Redshift from gravity",
+        "Brightening due to mass",
+        "Bending of light"
+      ],
+      "correct": 0,
+      "explanation": "Doppler is distinct from gravitational redshift and beaming."
+    },
+    {
+      "id": "Q08",
+      "question": "What is gravitational redshift?",
+      "options": [
+        "Light losing frequency climbing out of a gravitational field as seen by a distant observer",
+        "Red color of dust",
+        "The same as Doppler",
+        "Light turning into heat"
+      ],
+      "correct": 0,
+      "explanation": "It is a gravity effect, separate from motion."
+    },
+    {
+      "id": "Q09",
+      "question": "What is the photon region?",
+      "options": [
+        "A solid shell of light",
+        "Region of unstable photon orbits; in Kerr it is not one simple sphere",
+        "The accretion disk inner edge",
+        "The event horizon"
+      ],
+      "correct": 1,
+      "explanation": "Schwarzschild has the photon sphere at 3GM/c^2; Kerr is more complex."
+    },
+    {
+      "id": "Q10",
+      "question": "Why is the Quest visualization an approximation?",
+      "options": [
+        "It is exact GR",
+        "It uses simplified formulas and real-time shortcuts rather than full relativistic ray tracing and fluid simulation",
+        "It copies a movie",
+        "It has no physics"
+      ],
+      "correct": 1,
+      "explanation": "Performance limits require simplification; each feature is labeled by accuracy."
+    }
+  ],
+  "comparison": [
+    {
+      "id": "newtonian",
+      "title": "A. Newtonian reference",
+      "text": "Gravity as a force on matter. No horizon, no shadow, no photon region; light not bent at this strength.",
+      "limit": "Cannot reproduce strong-field effects."
+    },
+    {
+      "id": "approx",
+      "title": "B. Relativistic-inspired approximation",
+      "text": "Real-time shader with approximate deflection, Doppler, beaming and redshift factors.",
+      "limit": "Not a full geodesic integration; shadow and photon region are approximated."
+    },
+    {
+      "id": "full",
+      "title": "C. Higher-quality renderer (not implemented)",
+      "text": "Full Kerr geodesic ray tracing, offline or on desktop GPU. Placeholder.",
+      "limit": "Not available in this package."
+    }
+  ]
+}
