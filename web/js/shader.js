@@ -1,7 +1,7 @@
 // web/js/shader.js
 // Ultra-High Quality Relativistic WebGL2 Kerr Raymarching Shader
-// Butter-smooth RK2 Symplectic Geodesic Integration + Multi-Angle High-Detail Volumetric Plasma Simulation
-// Seamless 3D Continuous Hydrodynamic Fluid Turbulence - Zero Radial Moiré, Zero Seams, Zero Stepping Grid
+// Butter-smooth RK2 Symplectic Geodesic Integration + Multi-Scale Dynamic Orbital Plasma Rays
+// True Interstellar Gargantua Architecture: Thin Geodesic Plane Crossing, Zero Fogging, Clear Shadow Gap
 
 export const vertexShaderSource = `#version 300 es
 in vec2 a_position;
@@ -60,13 +60,7 @@ uniform float u_helmetVisor;
 
 #define MAX_STEPS 200
 
-// ---- 3D Continuous Hash & Quintic Smooth Noise -------------------------------
-float Hash31(vec3 p) {
-    p = fract(p * vec3(0.1031, 0.1030, 0.0973));
-    p += dot(p, p.yzx + 33.33);
-    return fract((p.x + p.y) * p.z);
-}
-
+// ---- Fast High-Quality Hash & Smooth 2D/3D Noise ----------------------------
 float Hash21(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
     p += dot(p, p + 45.32);
@@ -79,150 +73,112 @@ vec3 Hash33(vec3 p) {
     return fract((p.xxy + p.yxx) * p.zyx);
 }
 
-// 3D Quintic-smoothed noise (C2 continuous in all directions - no grid or banding)
-float Noise3D(vec3 p) {
-    vec3 i = floor(p);
-    vec3 f = fract(p);
-    vec3 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+float Noise2D(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
 
-    float n000 = Hash31(i + vec3(0.0, 0.0, 0.0));
-    float n100 = Hash31(i + vec3(1.0, 0.0, 0.0));
-    float n010 = Hash31(i + vec3(0.0, 1.0, 0.0));
-    float n110 = Hash31(i + vec3(1.0, 1.0, 0.0));
-    float n001 = Hash31(i + vec3(0.0, 0.0, 1.0));
-    float n101 = Hash31(i + vec3(1.0, 0.0, 1.0));
-    float n011 = Hash31(i + vec3(0.0, 1.0, 1.0));
-    float n111 = Hash31(i + vec3(1.0, 1.0, 1.0));
+    float a = Hash21(i);
+    float b = Hash21(i + vec2(1.0, 0.0));
+    float c = Hash21(i + vec2(0.0, 1.0));
+    float d = Hash21(i + vec2(1.0, 1.0));
 
-    float x00 = mix(n000, n100, u.x);
-    float x10 = mix(n010, n110, u.x);
-    float x01 = mix(n001, n101, u.x);
-    float x11 = mix(n011, n111, u.x);
-
-    float y0 = mix(x00, x10, u.y);
-    float y1 = mix(x01, x11, u.y);
-
-    return mix(y0, y1, u.z);
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
-// Multi-octave continuous 3D fractal noise with domain rotation & scale-invariant zoom detail
-float FBM3D(vec3 p) {
+float FBM2D(vec2 p) {
     float val = 0.0;
-    float amp = 0.52;
-    mat3 rot = mat3(
-        0.00,  0.80,  0.60,
-       -0.80,  0.36, -0.48,
-       -0.60, -0.48,  0.64
-    );
-    for (int i = 0; i < 5; i++) {
-        val += amp * Noise3D(p);
-        p = rot * p * 2.05 + vec3(1.7, 3.2, 0.9);
+    float amp = 0.55;
+    mat2 rot = mat2(0.8, -0.6, 0.6, 0.8);
+    for (int i = 0; i < 4; i++) {
+        val += amp * Noise2D(p);
+        p = rot * p * 2.15 + vec2(1.7, 3.2);
         amp *= 0.48;
     }
     return val;
 }
 
-// Ultra-fine micro-detail FBM for high-zoom fidelity
-float FineFBM(vec3 p) {
-    float val = 0.0;
-    float amp = 0.5;
-    for (int i = 0; i < 4; i++) {
-        val += amp * Noise3D(p);
-        p = p * 2.18 + vec3(2.3, 1.1, 4.7);
-        amp *= 0.45;
-    }
-    return val;
-}
-
-// 360° Cosmic Starfield with deep space backdrop
+// 360° Deep Space Starfield
 vec3 CosmicSkybox(vec3 dir) {
-    vec3 p = dir * 160.0;
+    vec3 p = dir * 180.0;
     vec3 cell = floor(p);
     vec3 f = fract(p);
     vec3 h = Hash33(cell);
-    float starHit = step(0.968, h.x);
+    float starHit = step(0.975, h.x);
     vec3 ctr = 0.2 + 0.6 * Hash33(cell + 19.0);
     float d = length(f - ctr);
-    float starBrightness = starHit * smoothstep(0.12, 0.0, d) * (0.2 + 4.0 * h.y * h.y);
-    vec3 starTint = mix(vec3(1.0, 0.92, 0.82), vec3(0.78, 0.90, 1.0), h.z);
+    float starBrightness = starHit * smoothstep(0.12, 0.0, d) * (0.3 + 4.5 * h.y * h.y);
+    vec3 starTint = mix(vec3(1.0, 0.94, 0.85), vec3(0.80, 0.92, 1.0), h.z);
     
-    // Very subtle cosmic background dust
-    float nebula = FBM3D(dir * 2.5) * 0.015;
-    vec3 nebCol = vec3(0.04, 0.025, 0.05) * nebula;
-    
-    return starBrightness * starTint * 1.2 + nebCol;
+    // Very faint distant background cosmic glow
+    float bgGlow = FBM2D(dir.xy * 2.0) * 0.008;
+    return starBrightness * starTint * 1.3 + vec3(0.02, 0.015, 0.03) * bgGlow;
 }
 
-// 100% Seamless Anisotropic Relativistic Fluid & Micro-Filament Turbulence
-// Maintains extreme photorealistic texture and fine striations even when zoomed in close
-float VolumetricCloudBillows(vec3 q, float r, float phiRot) {
-    vec2 circ = vec2(cos(phiRot), sin(phiRot));
-    float logR = log(max(r, 0.4));
+// Continuous Dynamic Moving Relativistic Plasma Rays
+// Creates fibrous, glowing rays of gas orbiting in real-time with Keplerian differential speed
+float DynamicPlasmaRays(vec2 xz, float r) {
+    float phi = atan(xz.y, xz.x);
     
-    // Keplerian sheared spiral coordinates (gas is pulled into tight concentric flow lines)
-    float spiralAngle = phiRot * 2.5 - logR * 6.8;
-    vec3 pCoord = vec3(circ * (1.4 + 0.4 * logR), logR * 1.25 + q.y * 2.2);
+    // Keplerian angular velocity: inner matter orbits rapidly, outer matter orbits slower
+    float omega = 1.8 / (pow(r, 1.5) + u_spin * u_orbitSign * 0.5);
+    float phiRot = phi - omega * u_time * 0.75 * u_orbitSign;
+    
+    // Spiral winding coordinates
+    float logR = log(max(r, 0.5));
+    float spiral = phiRot * 1.5 - logR * 5.2;
 
-    // Multi-tier domain warping for fluid vortices and turbulent eddies
-    vec3 warp1 = vec3(
-        FBM3D(pCoord * 1.1),
-        FBM3D(pCoord * 1.1 + vec3(4.3, 1.7, 2.9)),
-        FBM3D(pCoord * 1.1 + vec3(1.8, 5.2, 3.4))
-    );
-    
-    vec3 pWarped = pCoord + 1.15 * warp1;
-    float baseFBM = FBM3D(pWarped);
-    
-    // Highly elongated relativistic striations along the orbital path (as seen in Interstellar)
-    float shearFlow1 = sin(r * 42.0 + baseFBM * 8.0 + spiralAngle * 3.0) * 0.5 + 0.5;
-    float shearFlow2 = sin(r * 95.0 - baseFBM * 14.0 + phiRot * 12.0) * 0.5 + 0.5;
-    float striations = mix(shearFlow1, shearFlow2, 0.45);
-    
-    // Fine wispy plasma filaments (zoom-invariant micro-texture)
-    float microWisps = FineFBM(pWarped * 4.2 + vec3(striations * 1.8, q.y * 6.0, u_time * 0.04));
-    float ultraMicro = Noise3D(pWarped * 12.0 + vec3(0.0, 0.0, u_time * 0.08)) * 0.35;
-    
-    // Billowy crests & fibrous gas tendrils
-    float billows = 1.0 - abs(baseFBM - 0.5) * 2.0;
-    float combinedPlasma = mix(billows, striations, 0.52);
-    combinedPlasma = mix(combinedPlasma, microWisps + ultraMicro, 0.38);
-    
-    return smoothstep(0.08, 0.92, combinedPlasma) * 1.45;
+    // 1. Primary sweeping orbital stream bands
+    vec2 flow1 = vec2(phiRot * 2.0, r * 3.5);
+    float stream1 = sin(spiral * 6.0 + FBM2D(flow1) * 5.0) * 0.5 + 0.5;
+
+    // 2. Fine fibrous plasma rays (glowing streams around the black hole)
+    vec2 flow2 = vec2(phiRot * 5.0, r * 9.0);
+    float stream2 = sin(spiral * 18.0 - FBM2D(flow2) * 6.0) * 0.5 + 0.5;
+
+    // 3. Micro-scale filaments (visible when zooming in)
+    vec2 flow3 = vec2(phiRot * 14.0, r * 22.0);
+    float stream3 = sin(spiral * 42.0 + Noise2D(flow3) * 4.0) * 0.5 + 0.5;
+
+    // 4. Turbulent swirling vortices & Kelvin-Helmholtz eddies
+    vec2 turbCoord = vec2(phiRot * 3.0, logR * 4.0);
+    float turb = FBM2D(turbCoord + vec2(u_time * 0.05, 0.0));
+
+    // Blend streams into layered, dynamic fibrous plasma
+    float rays = mix(stream1, stream2, 0.52);
+    rays = mix(rays, stream3, 0.38);
+    rays = rays * (0.65 + 0.75 * turb);
+
+    return smoothstep(0.08, 0.95, rays) * 1.4;
 }
 
 // Authentic Interstellar Gargantua Color Palette:
 // Radiant Incandescent Pure White Core -> Cream Gold -> Warm Amber / Honey -> Smoked Bronze / Sepia Outer Wisps
-vec3 VolumetricCloudShading(float r, float g, float cloudPattern, float vertH) {
-    // Deep shadowed crevice / cool outer soot
-    vec3 smokedSepia = vec3(0.22, 0.08, 0.02);
-    // Warm bronze mid-body
-    vec3 bronzeAmber = vec3(0.72, 0.34, 0.10);
-    // Glowing golden plasma billows
-    vec3 glowingGold = vec3(1.45, 0.92, 0.42);
-    // Warm peach cream transition
-    vec3 peachCream = vec3(2.10, 1.70, 1.25);
-    // Blinding white-hot core
-    vec3 incandescentWhite = vec3(3.60, 3.25, 2.85);
+vec3 VolumetricCloudShading(float r, float g, float rayPattern) {
+    vec3 smokedSepia = vec3(0.20, 0.07, 0.02);
+    vec3 bronzeAmber = vec3(0.75, 0.36, 0.10);
+    vec3 glowingGold = vec3(1.55, 1.00, 0.45);
+    vec3 peachCream = vec3(2.30, 1.85, 1.35);
+    vec3 incandescentWhite = vec3(3.90, 3.55, 3.10);
 
     float rNorm = (r - u_rIn) / max(u_rOut - u_rIn, 0.1);
     
-    // Relativistic Novikov-Thorne thermal profile: peak near 1.25 * r_in
+    // Relativistic Novikov-Thorne thermal profile: peak near inner edge
     float rRel = max(r / max(u_rIn, 0.5), 1.001);
-    float tProfile = pow(1.0 / rRel, 0.75) * pow(max(1.0 - sqrt(1.0 / rRel), 0.0), 0.25) * 2.5;
-    float coreLight = clamp((tProfile * 1.6 + exp(-rNorm * 2.8)) * pow(max(g, 0.0), 1.2), 0.0, 2.5);
+    float tProfile = pow(1.0 / rRel, 0.75) * pow(max(1.0 - sqrt(1.0 / rRel), 0.0), 0.25) * 3.0;
+    float coreLight = clamp((tProfile * 1.8 + exp(-rNorm * 3.0)) * pow(max(g, 0.0), 1.2), 0.0, 3.0);
 
-    // Dynamic gradient mixing matching reference frame
-    vec3 col = mix(smokedSepia, bronzeAmber, smoothstep(0.05, 0.38, cloudPattern));
-    col = mix(col, glowingGold, smoothstep(0.35, 0.72, cloudPattern));
-    col = mix(col, peachCream, smoothstep(0.68, 0.95, cloudPattern));
-    col = mix(col, incandescentWhite, clamp(coreLight * 0.85 + smoothstep(0.88, 1.35, cloudPattern) * 0.6, 0.0, 1.0));
+    // Dynamic gradient mixing
+    vec3 col = mix(smokedSepia, bronzeAmber, smoothstep(0.05, 0.35, rayPattern));
+    col = mix(col, glowingGold, smoothstep(0.32, 0.70, rayPattern));
+    col = mix(col, peachCream, smoothstep(0.65, 0.95, rayPattern));
+    col = mix(col, incandescentWhite, clamp(coreLight * 0.85 + smoothstep(0.85, 1.35, rayPattern) * 0.65, 0.0, 1.0));
 
-    // Internal radiative glow
-    col *= (0.75 + 0.55 * cloudPattern);
+    col *= (0.75 + 0.55 * rayPattern);
     return col;
 }
 
-// Filmic ACES Tone Mapping with expanded dynamic range
+// Filmic ACES Tone Mapping
 vec3 ACESFilm(vec3 x) {
     float a = 2.51;
     float b = 0.03;
@@ -232,13 +188,13 @@ vec3 ACESFilm(vec3 x) {
     return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
 }
 
-// Volumetric Accretion Disk Sampling with Micro-Filament Details
-vec4 SampleAccretionDisk(vec3 q, vec3 rayDir, float stepLen) {
-    float r = length(q.xz);
+// Thin Accretion Disk Crossing Sample
+vec4 SampleAccretionDiskCrossing(vec3 hitPos, vec3 rayDir) {
+    float r = length(hitPos.xz);
     if (r < u_rIn || r > u_rOut) return vec4(0.0);
 
     // Relativistic orbital velocity in Kerr equatorial plane
-    vec3 phiVec = normalize(vec3(q.z, 0.0, -q.x)) * u_orbitSign;
+    vec3 phiVec = normalize(vec3(hitPos.z, 0.0, -hitPos.x)) * u_orbitSign;
     float beta = min(0.985, inversesqrt(max(r - 2.0 + u_spin * 0.5, 0.06)));
     float gamma = inversesqrt(max(1.0 - beta * beta, 0.001));
     vec3 n = -rayDir;
@@ -246,39 +202,32 @@ vec4 SampleAccretionDisk(vec3 q, vec3 rayDir, float stepLen) {
     // Doppler factor D
     float D = 1.0 / (gamma * max(1.0 - beta * dot(phiVec, n), 0.01));
 
-    // Gravitational Redshift g_grav
-    float cosTheta = q.y / max(r, 0.001);
-    float sigma = r * r + u_spin * u_spin * cosTheta * cosTheta;
-    float gGrav = sqrt(max(1.0 - 2.0 * r / sigma, 0.0));
-
+    // Gravitational Redshift
+    float gGrav = sqrt(max(1.0 - 2.0 / r, 0.0));
     float g = mix(1.0, D, u_dopplerOn) * mix(1.0, gGrav, u_redshiftOn);
 
-    // Differential Keplerian orbital shear
-    float phi = atan(q.z, q.x);
-    float omega = 1.0 / (pow(r, 1.5) + u_spin * u_orbitSign);
-    float phiRot = phi - omega * u_time * 0.28 * u_orbitSign;
+    // Dynamic moving plasma rays pattern
+    float rayPattern = DynamicPlasmaRays(hitPos.xz, r);
 
-    float cloudPattern = VolumetricCloudBillows(q, r, phiRot);
+    // Disk physical scale height
+    float scaleHeight = max(0.03, u_diskThickness * sqrt(r / u_rIn));
+    float slantPath = (2.0 * scaleHeight) / max(abs(rayDir.y), 0.045);
 
-    // Flaring Gaussian scale-height envelope
-    float scaleHeight = max(0.05, u_diskThickness * sqrt(r / u_rIn) * (0.85 + 0.25 * sin(phiRot * 2.0)));
-    float vertFalloff = exp(-0.5 * (q.y * q.y) / (scaleHeight * scaleHeight));
-
-    // Continuous radial emission profile with brilliant inner edge
+    // Emission Profile
     float rNorm = r / u_rIn;
-    float flux = pow(1.0 / max(rNorm, 1.0), 1.02) * smoothstep(u_rOut, u_rOut * 0.72, r);
-    float innerGlow = smoothstep(u_rIn * 3.8, u_rIn, r) * 2.2;
+    float flux = pow(1.0 / max(rNorm, 1.0), 1.02) * smoothstep(u_rOut, u_rOut * 0.75, r);
+    float innerGlow = smoothstep(u_rIn * 3.5, u_rIn, r) * 2.2;
 
-    float radiance = (flux * 1.6 + innerGlow * 2.0) * pow(max(g, 0.0), 1.65) * (0.35 + 0.65 * cloudPattern) * u_diskBrightness;
-    vec3 emission = VolumetricCloudShading(r, g, cloudPattern, abs(q.y)) * radiance;
+    float radiance = (flux * 1.6 + innerGlow * 2.2) * pow(max(g, 0.0), 1.65) * (0.35 + 0.65 * rayPattern) * u_diskBrightness;
+    vec3 emission = VolumetricCloudShading(r, g, rayPattern) * radiance;
 
     float radialFade = smoothstep(u_rIn, u_rIn * 1.02, r) * (1.0 - smoothstep(u_rOut * 0.94, u_rOut, r));
     
-    // Beer-Lambert continuous optical thickness with filament density modulation
-    float opticalDensity = u_diskOpacity * vertFalloff * radialFade * (0.6 + 0.7 * cloudPattern) * (stepLen / max(scaleHeight, 0.04));
-    float pointAlpha = 1.0 - exp(-clamp(opticalDensity, 0.0, 5.0));
+    // Physical Optical Depth across disk thickness
+    float opticalDepth = u_diskOpacity * radialFade * (0.7 + 0.6 * rayPattern) * (slantPath / 0.12);
+    float alpha = 1.0 - exp(-clamp(opticalDepth, 0.0, 4.5));
 
-    return vec4(emission, pointAlpha);
+    return vec4(emission, alpha);
 }
 
 // Relativistic Geodesic Acceleration Field (Kerr Frame Dragging + Schwarzschild Lensing)
@@ -347,14 +296,14 @@ void main() {
         }
 
         // Escape boundary check
-        if (r > 65.0 && dot(pos, vel) > 0.0) {
+        if (r > 60.0 && dot(pos, vel) > 0.0) {
             break;
         }
 
-        // Smooth adaptive integration step size (ensures full upper & lower Einstein arch coverage)
-        float dt = u_stepScale * clamp(0.048 * r + 0.012 * sqrt(r), 0.014, 3.5);
+        // Smooth adaptive integration step size
+        float dt = u_stepScale * clamp(0.042 * r + 0.010 * sqrt(r), 0.012, 3.2);
 
-        // 2nd-Order Runge-Kutta (Midpoint) Symplectic Integration for Butter-Smooth Curved Rays
+        // 2nd-Order Runge-Kutta (Midpoint) Symplectic Integration
         vec3 k1 = GetGeodesicAcc(pos, vel);
         vec3 posMid = pos + vel * (0.5 * dt);
         vec3 velMid = vel + k1 * (0.5 * dt);
@@ -362,34 +311,24 @@ void main() {
 
         vec3 pn = pos + velMid * dt;
         vec3 vn = normalize(vel + k2 * dt);
-        float stepDist = length(pn - pos);
 
-        // Continuous Volumetric & Exact Equatorial Plane Sampling
-        float diskH = max(0.08, u_diskThickness * 3.0 * sqrt(r / max(u_rIn, 0.1)));
-        
-        // Exact equatorial plane crossing (zero stepping artifacts across all angles)
-        if (pos.y * pn.y < 0.0) {
+        // Exact Equatorial Plane Crossing (Accretion Disk Lensing Arch & Front Band)
+        // Clean geometric intersection: zero false fogging, pristine black shadow gap
+        if (pos.y * pn.y <= 0.0 && transmit > 0.005) {
             float tCross = clamp(-pos.y / (pn.y - pos.y + 1e-7), 0.0, 1.0);
             vec3 hitPlane = mix(pos, pn, tCross);
             float planeR = length(hitPlane.xz);
-            if (planeR >= u_rIn && planeR <= u_rOut && transmit > 0.008) {
-                vec4 diskSample = SampleAccretionDisk(hitPlane, vn, max(stepDist, 0.04));
+            
+            if (planeR >= u_rIn && planeR <= u_rOut) {
+                vec4 diskSample = SampleAccretionDiskCrossing(hitPlane, vn);
                 if (diskSample.a > 0.0) {
                     col += transmit * diskSample.rgb * diskSample.a;
                     transmit *= (1.0 - diskSample.a);
                 }
             }
-        } 
-        else if (abs(pos.y) < diskH && transmit > 0.008) {
-            vec3 midPos = 0.5 * (pos + pn);
-            vec4 diskSample = SampleAccretionDisk(midPos, vn, stepDist);
-            if (diskSample.a > 0.0) {
-                col += transmit * diskSample.rgb * diskSample.a;
-                transmit *= (1.0 - diskSample.a);
-            }
         }
 
-        // Track overlay proximity
+        // Proximity for overlays
         if (u_showErgosphere > 0.5) {
             float cosTh = pos.y / max(r, 0.001);
             float rErgo = 1.0 + sqrt(max(0.0, 1.0 - u_spin * u_spin * cosTh * cosTh));
@@ -410,20 +349,20 @@ void main() {
         // Distant Cosmic Skybox with Gravitational Deflection
         col += transmit * CosmicSkybox(vel);
 
-        // Multiple Concentric Golden Photon Rings with Relativistic Chromatic Dispersion
+        // Multiple Concentric Razor-Sharp Photon Rings with Relativistic Dispersion
         if (u_photonGlow > 0.01) {
             float d1 = abs(minR - rPh);
-            float d2 = abs(minR - (rPh * 1.034));
-            float d3 = abs(minR - (rPh * 1.062));
+            float d2 = abs(minR - (rPh * 1.032));
+            float d3 = abs(minR - (rPh * 1.058));
 
-            float ring1 = exp(-d1 * u_photonSharpness * 1.4) * u_photonIntensity * 2.8;
-            float ring2 = exp(-d2 * (u_photonSharpness * 1.8)) * u_photonIntensity * 1.2;
-            float ring3 = exp(-d3 * (u_photonSharpness * 2.2)) * u_photonIntensity * 0.6;
+            float ring1 = exp(-d1 * u_photonSharpness * 1.6) * u_photonIntensity * 3.2;
+            float ring2 = exp(-d2 * (u_photonSharpness * 2.0)) * u_photonIntensity * 1.4;
+            float ring3 = exp(-d3 * (u_photonSharpness * 2.5)) * u_photonIntensity * 0.7;
 
             // Chromatic dispersion (blue-shifted sharp inner lip, warm gold outer halo)
-            vec3 ringCol1 = vec3(2.8, 2.4, 1.9) * ring1;
-            vec3 ringCol2 = vec3(1.8, 1.35, 0.8) * ring2;
-            vec3 ringCol3 = vec3(1.2, 0.75, 0.35) * ring3;
+            vec3 ringCol1 = vec3(3.2, 2.7, 2.1) * ring1;
+            vec3 ringCol2 = vec3(2.0, 1.45, 0.85) * ring2;
+            vec3 ringCol3 = vec3(1.3, 0.80, 0.38) * ring3;
 
             col += transmit * (ringCol1 + ringCol2 + ringCol3);
         }
@@ -468,7 +407,7 @@ void main() {
         vec3 goldCoating = vec3(1.1, 0.85, 0.35) * goldGleam;
         
         // Subtle optical breathing condensation & micro-glass texture near edges
-        float edgeFog = smoothstep(0.55, 0.88, visorDist) * 0.08 * Noise3D(vec3(uv * 14.0, u_time * 0.02));
+        float edgeFog = smoothstep(0.55, 0.88, visorDist) * 0.08 * Noise2D(uv * 14.0);
         
         // Visor glass darkening tint & HUD frame color
         vec3 frameCol = vec3(0.015, 0.02, 0.03);
@@ -481,7 +420,7 @@ void main() {
     col = ACESFilm(col * u_exposure);
 
     // Fine 35mm Organic Film Grain & Temporal Sub-pixel Dithering
-    float grain = (Hash21(gl_FragCoord.xy * 1.5 + fract(u_time * 17.13)) - 0.5) * 0.018;
+    float grain = (Hash21(gl_FragCoord.xy * 1.5 + fract(u_time * 17.13)) - 0.5) * 0.015;
     col += grain;
 
     fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
