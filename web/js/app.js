@@ -73,7 +73,7 @@ class GargantuaApp {
         this.bindWebXR();
         this.bindGyro();
         this.resize();
-        this.applyPreset('cloud-skim');
+        this.applyPreset('movie-ref');
 
         requestAnimationFrame((t) => this.render(t));
     }
@@ -592,9 +592,26 @@ class GargantuaApp {
             case 'infall-dive':
                 this.startInfall();
                 return;
-            case 'cloud-skim':
             case 'movie-ref':
-                // Exact match with reference image: Black hole on top-left, fiery canopy on top-right, golden cloud ocean below
+            case 'gargantua-imax':
+                // Exact match with reference image: Full symmetrical arch over top & bottom, glowing horizontal accretion disk
+                this.camera.distance = 13.8;
+                this.camera.theta = (84.5 * Math.PI) / 180.0; // 5.5° above equatorial plane
+                this.camera.phi = 0.0;
+                this.camera.target = [0.0, 0.0, 0.0];
+                this.camera.up = [0.0, 1.0, 0.0];
+                this.camera.fov = 54.0;
+                this.camera.mode = 'orbit';
+                this.physics.spin = 0.998;
+                this.physics.diskBrightness = 2.3;
+                this.physics.diskThicknessGM = 0.18;
+                this.physics.diskMaxTempK = 7200;
+                this.physics.photonRingIntensity = 2.8;
+                this.physics.photonRingSharpness = 32.0;
+                this.helmetVisor = false;
+                this.autoOrbit = false;
+                break;
+            case 'cloud-skim':
                 this.camera.distance = 4.8;
                 this.camera.theta = (88.6 * Math.PI) / 180.0;
                 this.camera.phi = 1.35;
