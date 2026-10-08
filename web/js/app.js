@@ -448,23 +448,32 @@ class GargantuaApp {
     }
 
     startInfall() {
+        if (this.isInfall) return; // Plunge runs one time only (no double trigger)
         this.isInfall = true;
         this.isCloseEncounter = false;
         this.isCinematicReference = false;
         this.infallTime = 0.0;
+        this.infallDuration = 20.0;
         this.infallStartPhi = this.camera.phi;
         this.autoOrbit = false;
-        this.camera.fov = 76.0;
+        this.camera.fov = 74.0;
         const infallBtn = document.getElementById('btn-infall-dive');
-        if (infallBtn) infallBtn.classList.add('active');
+        if (infallBtn) {
+            infallBtn.classList.add('active');
+            infallBtn.textContent = '⏳ Infall in Progress...';
+        }
         if (!this.audio.isPlaying) this.audio.toggle();
     }
 
     stopInfall() {
         this.isInfall = false;
+        this.infallTime = 0.0;
         const infallBtn = document.getElementById('btn-infall-dive');
-        if (infallBtn) infallBtn.classList.remove('active');
-        this.applyPreset('cloud-skim');
+        if (infallBtn) {
+            infallBtn.classList.remove('active');
+            infallBtn.textContent = '🚀 Horizon Plunge';
+        }
+        this.applyPreset('movie-ref');
     }
 
     toggleInfall() {
@@ -814,9 +823,18 @@ class GargantuaApp {
                 const sliderDistVal = document.getElementById('slider-dist-val');
                 if (sliderDistVal) sliderDistVal.textContent = r.toFixed(1) + ' rg';
 
-                // Loop plunge for continuous VR immersion after reaching horizon
-                if (u >= 1.0 && this.infallTime > this.infallDuration + 3.5) {
+                // Once plunge reaches the horizon (u >= 1.0), complete smoothly and settle without repeating!
+                if (u >= 1.0 && this.infallTime >= this.infallDuration + 1.5) {
+                    this.isInfall = false;
                     this.infallTime = 0.0;
+                    this.camera.distance = 1.18;
+                    this.physics.observerDistanceGM = 1.18;
+                    this.autoOrbit = true; // Resume continuous orbital rotation
+                    const infallBtn = document.getElementById('btn-infall-dive');
+                    if (infallBtn) {
+                        infallBtn.classList.remove('active');
+                        infallBtn.textContent = '🚀 Horizon Plunge';
+                    }
                 }
             } else {
                 // Continuous uninterrupted orbital flight along the black hole (runs continuously no matter what)
