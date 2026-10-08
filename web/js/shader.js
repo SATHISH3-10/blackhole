@@ -51,6 +51,7 @@ uniform float u_exposure;
 uniform int u_maxSteps;
 uniform float u_stepScale;
 uniform float u_captureR;
+uniform float u_cinematicDisk;
 
 // Astronaut Visor HUD & Overlays
 uniform float u_showHorizon;
@@ -151,6 +152,14 @@ float InterstellarPlasmaFlow(vec2 xz, float r) {
     // rather than evenly spaced contour lines on a technical illustration.
     float fineStreams = FBM2D(pWarped * 2.25 + vec2(u_time * 0.028, 0.0));
     
+    // The hero composition uses long, continuous ivory ribbons instead of
+    // highly turbulent detail, which keeps the lensed arches clean.
+    if (u_cinematicDisk > 0.5) {
+        float slowWarp = FBM2D(vec2(phiRot * 1.15 - logR * 2.0, logR * 1.4));
+        float ribbon = 0.5 + 0.5 * sin(phiRot * 4.0 - logR * 5.5 + slowWarp * 1.8);
+        return clamp(0.56 + 0.24 * slowWarp + 0.20 * ribbon, 0.0, 1.0);
+    }
+
     // Layer into dynamic moving gas
     float pattern = mix(billows, fineStreams, 0.30);
     pattern = smoothstep(0.18, 0.82, pattern);
@@ -398,6 +407,11 @@ void main() {
         float iscoWire = smoothstep(0.12, 0.0, minIscoDist) * 0.5;
         col += vec3(0.3, 1.0, 0.4) * iscoWire;
     }
+
+    // A small blue-black ambient field gives the shadow and surrounding space
+    // the depth visible in the reference composition.
+    float ambientHalo = exp(-length(uv) * 1.55) * 0.018;
+    col += vec3(0.15, 0.34, 0.62) * ambientHalo;
 
     // Cinematic Anamorphic Lens Flare & Atmospheric Horizon Glow
     float centerLum = clamp(length(col) * 0.20, 0.0, 3.0);

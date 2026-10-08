@@ -42,6 +42,7 @@ class GargantuaApp {
         this.autoOrbit = true;
         this.encounterDrift = 0.0;
         this.isCloseEncounter = false;
+        this.isCinematicReference = false;
         this.cinemaMode = false;
         this.startTime = performance.now();
         this.lastFrameTime = performance.now();
@@ -150,6 +151,7 @@ class GargantuaApp {
             u_maxSteps: gl.getUniformLocation(this.program, 'u_maxSteps'),
             u_stepScale: gl.getUniformLocation(this.program, 'u_stepScale'),
             u_captureR: gl.getUniformLocation(this.program, 'u_captureR'),
+            u_cinematicDisk: gl.getUniformLocation(this.program, 'u_cinematicDisk'),
 
             u_showHorizon: gl.getUniformLocation(this.program, 'u_showHorizon'),
             u_showErgosphere: gl.getUniformLocation(this.program, 'u_showErgosphere'),
@@ -448,6 +450,7 @@ class GargantuaApp {
     startInfall() {
         this.isInfall = true;
         this.isCloseEncounter = false;
+        this.isCinematicReference = false;
         this.infallTime = 0.0;
         this.infallStartPhi = this.camera.phi;
         this.autoOrbit = false;
@@ -606,6 +609,7 @@ class GargantuaApp {
 
     applyPreset(preset) {
         this.isCloseEncounter = false;
+        this.isCinematicReference = false;
         switch (preset) {
             case 'infall-dive':
                 this.startInfall();
@@ -630,6 +634,7 @@ class GargantuaApp {
                 this.physics.exposure = 0.90;
                 this.helmetVisor = false;
                 this.autoOrbit = false;
+                this.isCinematicReference = true;
                 break;
             case 'close-encounter':
                 // Default experiential view. The motion is deliberately slow:
@@ -934,6 +939,7 @@ class GargantuaApp {
         gl.uniform1i(this.uniforms.u_maxSteps, this.physics.raymarchSteps);
         gl.uniform1f(this.uniforms.u_stepScale, 1.0);
         gl.uniform1f(this.uniforms.u_captureR, this.physics.eventHorizonGM);
+        gl.uniform1f(this.uniforms.u_cinematicDisk, this.isCinematicReference ? 1.0 : 0.0);
 
         gl.uniform1f(this.uniforms.u_showHorizon, this.overlays.horizon ? 1.0 : 0.0);
         gl.uniform1f(this.uniforms.u_showErgosphere, this.overlays.ergosphere ? 1.0 : 0.0);
