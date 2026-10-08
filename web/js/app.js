@@ -76,7 +76,7 @@ class GargantuaApp {
         this.bindWebXR();
         this.bindGyro();
         this.resize();
-        this.applyPreset('close-encounter');
+        this.applyPreset('movie-ref');
 
         requestAnimationFrame((t) => this.render(t));
     }
@@ -299,6 +299,19 @@ class GargantuaApp {
             } else if (e.key === 'ArrowDown' || e.key === 's') {
                 this.camera.theta = Math.min(Math.PI - 0.02, this.camera.theta + 0.03);
                 this.updateTelemetry();
+            } else if (e.key === '+' || e.key === '=' || e.key === 'PageUp') {
+                const minAllowed = this.physics.eventHorizonGM + 0.1;
+                this.camera.distance = Math.max(minAllowed, this.camera.distance - 1.5);
+                this.physics.observerDistanceGM = this.camera.distance;
+                this.updateTelemetry();
+                const distSlider = document.getElementById('slider-dist');
+                if (distSlider) distSlider.value = this.camera.distance.toFixed(1);
+            } else if (e.key === '-' || e.key === '_' || e.key === 'PageDown') {
+                this.camera.distance = Math.min(120.0, this.camera.distance + 1.5);
+                this.physics.observerDistanceGM = this.camera.distance;
+                this.updateTelemetry();
+                const distSlider = document.getElementById('slider-dist');
+                if (distSlider) distSlider.value = this.camera.distance.toFixed(1);
             }
         });
     }
@@ -803,19 +816,7 @@ class GargantuaApp {
             } else {
                 // Continuous uninterrupted orbital flight along the black hole (runs continuously no matter what)
                 if (this.autoOrbit) {
-                    if (this.isCloseEncounter) {
-                        this.camera.phi += dt * 0.018;
-                        // A nearly imperceptible inward drift and vertical sway make
-                        // the black hole feel stationary and enormous while space
-                        // moves around the viewer. It never crosses the horizon.
-                        this.encounterDrift += dt;
-                        const approach = 0.5 + 0.5 * Math.sin(this.encounterDrift * 0.075 - 1.57);
-                        this.camera.distance = 19.0 - approach * 5.5;
-                        this.physics.observerDistanceGM = this.camera.distance;
-                        this.camera.theta += Math.sin(this.encounterDrift * 0.16) * dt * 0.00075;
-                    } else {
-                        this.camera.phi += dt * 0.055;
-                    }
+                    this.camera.phi += dt * 0.035;
                 }
                 this.audio.updateInfallAudio(this.camera.distance, 0.0, false);
             }
