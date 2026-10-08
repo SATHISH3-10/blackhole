@@ -101,6 +101,8 @@ float FBM2D(vec2 p) {
 
 // 360° Deep Space Starfield
 vec3 CosmicSkybox(vec3 dir) {
+    // The sky must remain legible in every direction: the observer is inside a
+    // huge volume of space, not in front of a flat black backdrop.
     vec3 p = dir * 180.0;
     vec3 cell = floor(p);
     vec3 f = fract(p);
@@ -111,9 +113,13 @@ vec3 CosmicSkybox(vec3 dir) {
     float starBrightness = starHit * smoothstep(0.12, 0.0, d) * (0.3 + 4.0 * h.y * h.y);
     vec3 starTint = mix(vec3(1.0, 0.94, 0.85), vec3(0.80, 0.92, 1.0), h.z);
     
-    // Very faint distant nebula dust
-    float bgDust = FBM2D(dir.xy * 1.8) * 0.006;
-    return starBrightness * starTint * 1.2 + vec3(0.02, 0.015, 0.03) * bgDust;
+    // A restrained, non-localised band of galactic dust gives the empty space
+    // depth without competing with the silhouette and lensed disk.
+    float galacticBand = exp(-pow(abs(dir.y + 0.18 * sin(dir.x * 5.0)), 2.0) * 22.0);
+    float bgDust = FBM2D(vec2(atan(dir.z, dir.x), dir.y) * vec2(3.4, 5.0)) * galacticBand;
+    vec3 deepSpace = vec3(0.0008, 0.0015, 0.0035);
+    vec3 dustColor = mix(vec3(0.010, 0.006, 0.018), vec3(0.015, 0.025, 0.050), bgDust);
+    return deepSpace + dustColor * 0.42 + starBrightness * starTint * 1.2;
 }
 
 // Continuous Keplerian Plasma Streams (True Fluid Flow Around the Black Hole)
@@ -141,12 +147,13 @@ float InterstellarPlasmaFlow(vec2 xz, float r) {
     // Broad organic stream billows (hot flow channels)
     float billows = 1.0 - abs(baseTurb - 0.5) * 2.0;
     
-    // Fine streaming filaments (tangential fibrous rays)
-    float fineStreams = FBM2D(pWarped * 3.2 + vec2(u_time * 0.04, 0.0));
+    // Fine streaming filaments.  Keep them broad enough to look like hot gas,
+    // rather than evenly spaced contour lines on a technical illustration.
+    float fineStreams = FBM2D(pWarped * 2.25 + vec2(u_time * 0.028, 0.0));
     
     // Layer into dynamic moving gas
-    float pattern = mix(billows, fineStreams, 0.42);
-    pattern = smoothstep(0.12, 0.88, pattern);
+    float pattern = mix(billows, fineStreams, 0.30);
+    pattern = smoothstep(0.18, 0.82, pattern);
 
     return pattern;
 }
@@ -395,7 +402,7 @@ void main() {
     // Cinematic Anamorphic Lens Flare & Atmospheric Horizon Glow
     float centerLum = clamp(length(col) * 0.20, 0.0, 3.0);
     // Subtle horizontal streak flare (characteristic of Interstellar 70mm anamorphic lenses)
-    float horizStreak = exp(-abs(uv.y * 36.0)) * exp(-abs(uv.x * 0.35)) * centerLum * 0.25;
+    float horizStreak = exp(-abs(uv.y * 42.0)) * exp(-abs(uv.x * 0.30)) * centerLum * 0.15;
     vec3 streakColor = vec3(1.3, 1.0, 0.7) * horizStreak;
     
     // Soft golden core diffusion bloom

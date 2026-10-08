@@ -21,7 +21,8 @@ class GargantuaApp {
             return;
         }
 
-        // Camera State (Matches reference image: Black hole on top-left, fiery canopy on top-right, golden cloud ocean below)
+        // Camera State: a close encounter where the black hole first appears as
+        // a distant structure and slowly becomes impossible to ignore.
         this.camera = {
             distance: 4.8,
             theta: (88.6 * Math.PI) / 180.0, // low altitude parallel to cloud ocean
@@ -39,6 +40,8 @@ class GargantuaApp {
         this.lastMouseX = 0;
         this.lastMouseY = 0;
         this.autoOrbit = true;
+        this.encounterDrift = 0.0;
+        this.isCloseEncounter = false;
         this.cinemaMode = false;
         this.startTime = performance.now();
         this.lastFrameTime = performance.now();
@@ -73,7 +76,7 @@ class GargantuaApp {
         this.bindWebXR();
         this.bindGyro();
         this.resize();
-        this.applyPreset('movie-ref');
+        this.applyPreset('close-encounter');
 
         requestAnimationFrame((t) => this.render(t));
     }
@@ -431,6 +434,7 @@ class GargantuaApp {
 
     startInfall() {
         this.isInfall = true;
+        this.isCloseEncounter = false;
         this.infallTime = 0.0;
         this.infallStartPhi = this.camera.phi;
         this.autoOrbit = false;
@@ -588,14 +592,16 @@ class GargantuaApp {
     }
 
     applyPreset(preset) {
+        this.isCloseEncounter = false;
         switch (preset) {
             case 'infall-dive':
                 this.startInfall();
                 return;
             case 'movie-ref':
             case 'gargantua-imax':
-                // Exact match with reference image: Full symmetrical arch over top & bottom, glowing horizontal accretion disk
-                this.camera.distance = 15.5;
+                // A quiet cinematic framing: a dark shadow, a thin bright plane,
+                // and enough surrounding sky for the scale to register.
+                this.camera.distance = 18.0;
                 this.camera.theta = (84.5 * Math.PI) / 180.0; // 5.5° above equatorial plane
                 this.camera.phi = 0.0;
                 this.camera.target = [0.0, 0.0, 0.0];
@@ -603,14 +609,37 @@ class GargantuaApp {
                 this.camera.fov = 54.0;
                 this.camera.mode = 'orbit';
                 this.physics.spin = 0.998;
-                this.physics.diskBrightness = 1.3;
-                this.physics.diskThicknessGM = 0.08;
+                this.physics.diskBrightness = 0.92;
+                this.physics.diskThicknessGM = 0.055;
                 this.physics.diskMaxTempK = 6800;
                 this.physics.photonRingIntensity = 2.2;
                 this.physics.photonRingSharpness = 30.0;
-                this.physics.exposure = 1.05;
+                this.physics.exposure = 0.90;
                 this.helmetVisor = false;
                 this.autoOrbit = false;
+                break;
+            case 'close-encounter':
+                // Default experiential view. The motion is deliberately slow:
+                // the changing star field and disk reveal the proximity before
+                // the viewer consciously notices an animation.
+                this.camera.distance = 19.0;
+                this.camera.theta = (86.8 * Math.PI) / 180.0;
+                this.camera.phi = 0.22;
+                this.camera.target = [0.0, 0.0, 0.0];
+                this.camera.up = [0.0, 1.0, 0.0];
+                this.camera.fov = 62.0;
+                this.camera.mode = 'orbit';
+                this.physics.spin = 0.998;
+                this.physics.diskBrightness = 1.02;
+                this.physics.diskThicknessGM = 0.065;
+                this.physics.diskMaxTempK = 6500;
+                this.physics.photonRingIntensity = 1.45;
+                this.physics.photonRingSharpness = 27.0;
+                this.physics.exposure = 0.94;
+                this.helmetVisor = false;
+                this.autoOrbit = true;
+                this.encounterDrift = 0.0;
+                this.isCloseEncounter = true;
                 break;
             case 'cloud-skim':
                 this.camera.distance = 4.8;
@@ -774,7 +803,19 @@ class GargantuaApp {
             } else {
                 // Continuous uninterrupted orbital flight along the black hole (runs continuously no matter what)
                 if (this.autoOrbit) {
-                    this.camera.phi += dt * 0.055;
+                    if (this.isCloseEncounter) {
+                        this.camera.phi += dt * 0.018;
+                        // A nearly imperceptible inward drift and vertical sway make
+                        // the black hole feel stationary and enormous while space
+                        // moves around the viewer. It never crosses the horizon.
+                        this.encounterDrift += dt;
+                        const approach = 0.5 + 0.5 * Math.sin(this.encounterDrift * 0.075 - 1.57);
+                        this.camera.distance = 19.0 - approach * 5.5;
+                        this.physics.observerDistanceGM = this.camera.distance;
+                        this.camera.theta += Math.sin(this.encounterDrift * 0.16) * dt * 0.00075;
+                    } else {
+                        this.camera.phi += dt * 0.055;
+                    }
                 }
                 this.audio.updateInfallAudio(this.camera.distance, 0.0, false);
             }
