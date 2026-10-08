@@ -13,7 +13,9 @@ namespace Gargantua.BlackHole
     public class BlackHoleController : MonoBehaviour
     {
         public BlackHolePhysicsConfig config;
-        [Tooltip("Material using shader Gargantua/LensedSpace (created by the scene builder).")] public Material skyMaterialAsset;
+        [Tooltip("Material using shader Gargantua/Procedural Starfield (created by the scene builder).")] public Material skyMaterialAsset;
+        [Tooltip("The same material assigned to GargantuaLensingFeature in the active URP Renderer Data.")]
+        public Material lensMaterialAsset;
         public Camera eyeCamera;
         [Header("Quality (driven by PerformanceMonitor)")]
         [Range(16, 160)] public int raymarchSteps = 64;
@@ -35,7 +37,9 @@ namespace Gargantua.BlackHole
             P_Esc = Shader.PropertyToID("_EscapeR"), P_Exp = Shader.PropertyToID("_Exposure"), P_Noise = Shader.PropertyToID("_NoiseScale"),
             P_Alpha = Shader.PropertyToID("_DiskAlpha"), P_Thickness = Shader.PropertyToID("_DiskThickness"),
             P_Kerr = Shader.PropertyToID("_KerrGeodesics"), P_PhotonInt = Shader.PropertyToID("_PhotonRingIntensity"),
-            P_PhotonSharp = Shader.PropertyToID("_PhotonRingSharpness");
+            P_PhotonSharp = Shader.PropertyToID("_PhotonRingSharpness"),
+            P_LensBHPos = Shader.PropertyToID("_BlackHoleWorldPos"), P_LensHorizon = Shader.PropertyToID("_EventHorizonRadius"),
+            P_LensStrength = Shader.PropertyToID("_BendStrength");
 
         void Awake()
         {
@@ -85,6 +89,13 @@ namespace Gargantua.BlackHole
             mat.SetFloat(P_Cap, (float)config.EventHorizonGM);             // Kerr event horizon radius r+
             mat.SetFloat(P_Esc, Mathf.Max(60f, config.observerDistanceGM * 1.5f));
             mat.SetFloat(P_Exp, exposure); mat.SetFloat(P_Noise, 0.7f); mat.SetFloat(P_Alpha, config.diskOpacity);
+
+            if (lensMaterialAsset != null)
+            {
+                lensMaterialAsset.SetVector(P_LensBHPos, transform.position);
+                lensMaterialAsset.SetFloat(P_LensHorizon, (float)config.EventHorizonGM * config.unityUnitsPerGM);
+                lensMaterialAsset.SetFloat(P_LensStrength, config.lensingStrength * 1.35f);
+            }
 
             // warm key light on the suit, coming from the hole toward the observer
             Vector3 toObs = eyeCamera.transform.position - transform.position;

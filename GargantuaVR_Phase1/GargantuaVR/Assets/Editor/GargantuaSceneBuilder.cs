@@ -50,7 +50,9 @@ public static class GargantuaSceneBuilder
     {
         var physics = LoadOrCreate<BlackHolePhysicsConfig>("Assets/Config/BlackHolePhysicsConfig.asset");
         var comfort = LoadOrCreate<ComfortSettings>("Assets/Config/ComfortSettings.asset");
-        var sky = LoadOrCreateMat("Assets/Materials/GargantuaLensedSpace.mat", "Gargantua/LensedSpace");
+        var sky = LoadOrCreateMat("Assets/Materials/GargantuaProceduralStarfield.mat", "Gargantua/Procedural Starfield");
+        var disk = LoadOrCreateMat("Assets/Materials/GargantuaAccretionDisk.mat", "Gargantua/XR Accretion Disk Slice", m => m.enableInstancing = true);
+        var lens = LoadOrCreateMat("Assets/Materials/GargantuaLensing.mat", "Hidden/Gargantua/XR Gravitational Lensing");
         var unlit = LoadOrCreateMat("Assets/Materials/OverlayUnlit.mat", "Universal Render Pipeline/Unlit");
         unlit.enableInstancing = true;
         var suit = LoadOrCreateMat("Assets/Materials/SuitMain.mat", "Universal Render Pipeline/Simple Lit", m => m.SetColor("_BaseColor", new Color(0.78f, 0.8f, 0.84f)));
@@ -69,6 +71,10 @@ public static class GargantuaSceneBuilder
         var bh = bhGo.AddComponent<BlackHoleController>();
         bh.config = physics;
         bh.skyMaterialAsset = sky;
+        bh.lensMaterialAsset = lens;
+        var slicedDisk = bhGo.AddComponent<SlicedAccretionDiskRenderer>();
+        slicedDisk.config = physics;
+        slicedDisk.diskMaterialAsset = disk;
 
         // 3. Core Systems Hierarchy
         var sys = new GameObject("Systems");
