@@ -76,7 +76,7 @@ export class KerrPhysics {
     }
 
     get outerRadiusResolvedGM() {
-        return Math.min(10.5, this.innerRadiusResolvedGM * 3.8);
+        return 22.0;
     }
 
     // Static Observer Time Dilation Factor d(tau)/dt

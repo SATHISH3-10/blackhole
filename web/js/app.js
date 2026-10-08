@@ -595,7 +595,7 @@ class GargantuaApp {
             case 'movie-ref':
             case 'gargantua-imax':
                 // Exact match with reference image: Full symmetrical arch over top & bottom, glowing horizontal accretion disk
-                this.camera.distance = 13.8;
+                this.camera.distance = 15.5;
                 this.camera.theta = (84.5 * Math.PI) / 180.0; // 5.5° above equatorial plane
                 this.camera.phi = 0.0;
                 this.camera.target = [0.0, 0.0, 0.0];
@@ -603,11 +603,12 @@ class GargantuaApp {
                 this.camera.fov = 54.0;
                 this.camera.mode = 'orbit';
                 this.physics.spin = 0.998;
-                this.physics.diskBrightness = 2.3;
-                this.physics.diskThicknessGM = 0.18;
-                this.physics.diskMaxTempK = 7200;
-                this.physics.photonRingIntensity = 2.8;
-                this.physics.photonRingSharpness = 32.0;
+                this.physics.diskBrightness = 1.3;
+                this.physics.diskThicknessGM = 0.08;
+                this.physics.diskMaxTempK = 6800;
+                this.physics.photonRingIntensity = 2.2;
+                this.physics.photonRingSharpness = 30.0;
+                this.physics.exposure = 1.05;
                 this.helmetVisor = false;
                 this.autoOrbit = false;
                 break;
