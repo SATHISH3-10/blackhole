@@ -1,9 +1,143 @@
-// web/js/app.js
-// Main WebGL2 & WebXR Application Controller, 360° AR/VR Navigation, Telemetry & UI Bindings
-
 import { KerrPhysics } from './physics.js';
 import { vertexShaderSource, fragmentShaderSource } from './shader.js';
 import { SpaceSoundSynthesizer } from './audio.js';
+
+// Canonical 25 WebXR Hand Tracking Joints
+export const XR_HAND_JOINTS = [
+    'wrist',
+    'thumb-metacarpal', 'thumb-phalanx-proximal', 'thumb-phalanx-distal', 'thumb-phalanx-tip',
+    'index-finger-metacarpal', 'index-finger-phalanx-proximal', 'index-finger-phalanx-intermediate', 'index-finger-phalanx-distal', 'index-finger-phalanx-tip',
+    'middle-finger-metacarpal', 'middle-finger-phalanx-proximal', 'middle-finger-phalanx-intermediate', 'middle-finger-phalanx-distal', 'middle-finger-phalanx-tip',
+    'ring-finger-metacarpal', 'ring-finger-phalanx-proximal', 'ring-finger-phalanx-intermediate', 'ring-finger-phalanx-distal', 'ring-finger-phalanx-tip',
+    'pinky-finger-metacarpal', 'pinky-finger-phalanx-proximal', 'pinky-finger-phalanx-intermediate', 'pinky-finger-phalanx-distal', 'pinky-finger-phalanx-tip'
+];
+
+// Procedural 25-Joint Skeletal Kinematics for Desktop & Mobile Interaction
+export function buildProceduralAxemuHand(isLeft, time, mouseX, mouseY, isPinch, targetArray) {
+    const side = isLeft ? -1.0 : 1.0;
+    const wave = Math.sin(time * 0.002);
+    
+    // Wrist base position in local camera space
+    let wX, wY, wZ;
+    if (isLeft) {
+        wX = -0.22;
+        wY = -0.22 + 0.005 * wave;
+        wZ = 0.35 + 0.004 * wave;
+    } else {
+        wX = 0.22 + mouseX * 0.035;
+        wY = -0.22 + mouseY * 0.035;
+        wZ = 0.35;
+    }
+
+    // Joint 0: Wrist
+    targetArray[0] = wX;
+    targetArray[1] = wY;
+    targetArray[2] = wZ;
+
+    // Pinch curl modifier
+    const pCurl = isPinch ? 1.0 : 0.0;
+
+    // Thumb Chain (Joints 1..4)
+    targetArray[1 * 3 + 0] = wX + side * 0.022;
+    targetArray[1 * 3 + 1] = wY + 0.008;
+    targetArray[1 * 3 + 2] = wZ + 0.016;
+
+    targetArray[2 * 3 + 0] = wX + side * (0.036 - pCurl * 0.008);
+    targetArray[2 * 3 + 1] = wY + 0.018 + pCurl * 0.005;
+    targetArray[2 * 3 + 2] = wZ + 0.034 + pCurl * 0.010;
+
+    targetArray[3 * 3 + 0] = wX + side * (0.038 - pCurl * 0.014);
+    targetArray[3 * 3 + 1] = wY + 0.024 + pCurl * 0.002;
+    targetArray[3 * 3 + 2] = wZ + 0.048 + pCurl * 0.018;
+
+    targetArray[4 * 3 + 0] = wX + side * (0.033 - pCurl * 0.018);
+    targetArray[4 * 3 + 1] = wY + 0.028 - pCurl * 0.008;
+    targetArray[4 * 3 + 2] = wZ + 0.058 + pCurl * 0.022;
+
+    // Index Finger (Joints 5..9)
+    targetArray[5 * 3 + 0] = wX + side * 0.018;
+    targetArray[5 * 3 + 1] = wY + 0.014;
+    targetArray[5 * 3 + 2] = wZ + 0.042;
+
+    targetArray[6 * 3 + 0] = wX + side * (0.020 + pCurl * 0.002);
+    targetArray[6 * 3 + 1] = wY + 0.022 - pCurl * 0.004;
+    targetArray[6 * 3 + 2] = wZ + 0.064 - pCurl * 0.004;
+
+    targetArray[7 * 3 + 0] = wX + side * (0.019 + pCurl * 0.004);
+    targetArray[7 * 3 + 1] = wY + 0.024 - pCurl * 0.012;
+    targetArray[7 * 3 + 2] = wZ + 0.080 - pCurl * 0.008;
+
+    targetArray[8 * 3 + 0] = wX + side * (0.017 + pCurl * 0.002);
+    targetArray[8 * 3 + 1] = wY + 0.019 - pCurl * 0.018;
+    targetArray[8 * 3 + 2] = wZ + 0.093 - pCurl * 0.015;
+
+    targetArray[9 * 3 + 0] = wX + side * (0.015 - pCurl * 0.000);
+    targetArray[9 * 3 + 1] = wY + 0.014 - pCurl * 0.020;
+    targetArray[9 * 3 + 2] = wZ + 0.103 - pCurl * 0.023;
+
+    // Middle Finger (Joints 10..14)
+    targetArray[10 * 3 + 0] = wX + side * 0.006;
+    targetArray[10 * 3 + 1] = wY + 0.016;
+    targetArray[10 * 3 + 2] = wZ + 0.044;
+
+    targetArray[11 * 3 + 0] = wX + side * 0.007;
+    targetArray[11 * 3 + 1] = wY + 0.024;
+    targetArray[11 * 3 + 2] = wZ + 0.068;
+
+    targetArray[12 * 3 + 0] = wX + side * 0.006;
+    targetArray[12 * 3 + 1] = wY + 0.026;
+    targetArray[12 * 3 + 2] = wZ + 0.086;
+
+    targetArray[13 * 3 + 0] = wX + side * 0.005;
+    targetArray[13 * 3 + 1] = wY + 0.020;
+    targetArray[13 * 3 + 2] = wZ + 0.100;
+
+    targetArray[14 * 3 + 0] = wX + side * 0.004;
+    targetArray[14 * 3 + 1] = wY + 0.014;
+    targetArray[14 * 3 + 2] = wZ + 0.111;
+
+    // Ring Finger (Joints 15..19)
+    targetArray[15 * 3 + 0] = wX - side * 0.006;
+    targetArray[15 * 3 + 1] = wY + 0.014;
+    targetArray[15 * 3 + 2] = wZ + 0.041;
+
+    targetArray[16 * 3 + 0] = wX - side * 0.006;
+    targetArray[16 * 3 + 1] = wY + 0.021;
+    targetArray[16 * 3 + 2] = wZ + 0.063;
+
+    targetArray[17 * 3 + 0] = wX - side * 0.006;
+    targetArray[17 * 3 + 1] = wY + 0.022;
+    targetArray[17 * 3 + 2] = wZ + 0.080;
+
+    targetArray[18 * 3 + 0] = wX - side * 0.006;
+    targetArray[18 * 3 + 1] = wY + 0.016;
+    targetArray[18 * 3 + 2] = wZ + 0.092;
+
+    targetArray[19 * 3 + 0] = wX - side * 0.006;
+    targetArray[19 * 3 + 1] = wY + 0.010;
+    targetArray[19 * 3 + 2] = wZ + 0.101;
+
+    // Pinky Finger (Joints 20..24)
+    targetArray[20 * 3 + 0] = wX - side * 0.018;
+    targetArray[20 * 3 + 1] = wY + 0.010;
+    targetArray[20 * 3 + 2] = wZ + 0.036;
+
+    targetArray[21 * 3 + 0] = wX - side * 0.019;
+    targetArray[21 * 3 + 1] = wY + 0.015;
+    targetArray[21 * 3 + 2] = wZ + 0.054;
+
+    targetArray[22 * 3 + 0] = wX - side * 0.018;
+    targetArray[22 * 3 + 1] = wY + 0.015;
+    targetArray[22 * 3 + 2] = wZ + 0.068;
+
+    targetArray[23 * 3 + 0] = wX - side * 0.017;
+    targetArray[23 * 3 + 1] = wY + 0.010;
+    targetArray[23 * 3 + 2] = wZ + 0.078;
+
+    targetArray[24 * 3 + 0] = wX - side * 0.016;
+    targetArray[24 * 3 + 1] = wY + 0.005;
+    targetArray[24 * 3 + 2] = wZ + 0.086;
+}
 
 class GargantuaApp {
     constructor() {
@@ -57,6 +191,21 @@ class GargantuaApp {
         this.gyroMatrix = new Float32Array([1,0,0, 0,1,0, 0,0,1]);
         this.helmetVisor = true;
 
+        // Desktop Mouse & Webcam Hand Tracking State
+        this.mouseNormX = 0.0;
+        this.mouseNormY = 0.0;
+        this.webcamActive = false;
+        this.webcamStream = null;
+        this.webcamVideo = null;
+        this.webcamCanvas = null;
+        this.webcamCtx = null;
+
+        // WebXR Hand Tracking & Body Scanning State
+        this.hands = {
+            left: { active: false, wrist: [0, 0, 0], idx: [0, 0, 0], thb: [0, 0, 0], rot: [1,0,0, 0,1,0, 0,0,1] },
+            right: { active: false, wrist: [0, 0, 0], idx: [0, 0, 0], thb: [0, 0, 0], rot: [1,0,0, 0,1,0, 0,0,1] }
+        };
+
         // Cinematic Infall Plunge State (Falling Into A Giant Black Hole VR 360°)
         this.isInfall = false;
         this.infallTime = 0.0;
@@ -75,6 +224,7 @@ class GargantuaApp {
         this.bindEvents();
         this.bindUI();
         this.bindWebXR();
+        this.bindWebcamHands();
         this.bindGyro();
         this.resize();
         this.applyPreset('movie-ref');
@@ -156,8 +306,37 @@ class GargantuaApp {
             u_showHorizon: gl.getUniformLocation(this.program, 'u_showHorizon'),
             u_showErgosphere: gl.getUniformLocation(this.program, 'u_showErgosphere'),
             u_showISCO: gl.getUniformLocation(this.program, 'u_showISCO'),
-            u_helmetVisor: gl.getUniformLocation(this.program, 'u_helmetVisor')
+            u_helmetVisor: gl.getUniformLocation(this.program, 'u_helmetVisor'),
+
+            // Universal 360° Desktop & WebXR Stereoscopic Ray System
+            u_viewport: gl.getUniformLocation(this.program, 'u_viewport'),
+            u_rayOrigin: gl.getUniformLocation(this.program, 'u_rayOrigin'),
+            u_rayBasis: gl.getUniformLocation(this.program, 'u_rayBasis'),
+            u_tanHalfFov: gl.getUniformLocation(this.program, 'u_tanHalfFov'),
+            u_fovOffset: gl.getUniformLocation(this.program, 'u_fovOffset'),
+
+            // Axiom AxEMU 25-Joint Skinned Hand Tracking & Gestures
+            u_jointsL: gl.getUniformLocation(this.program, 'u_jointsL'),
+            u_jointsR: gl.getUniformLocation(this.program, 'u_jointsR'),
+            u_gestureState: gl.getUniformLocation(this.program, 'u_gestureState'),
+            u_handL: gl.getUniformLocation(this.program, 'u_handL'),
+            u_handR: gl.getUniformLocation(this.program, 'u_handR'),
+            u_handL_idx: gl.getUniformLocation(this.program, 'u_handL_idx'),
+            u_handR_idx: gl.getUniformLocation(this.program, 'u_handR_idx'),
+            u_handL_thumb: gl.getUniformLocation(this.program, 'u_handL_thumb'),
+            u_handR_thumb: gl.getUniformLocation(this.program, 'u_handR_thumb'),
+            u_handState: gl.getUniformLocation(this.program, 'u_handState'),
+            u_heartRateBPM: gl.getUniformLocation(this.program, 'u_heartRateBPM'),
+            u_timeDilation: gl.getUniformLocation(this.program, 'u_timeDilation'),
+            u_horizonDist: gl.getUniformLocation(this.program, 'u_horizonDist')
         };
+
+        // 25-Joint Skinned Hand Buffers (25 * 3 = 75 floats each)
+        this.jointDataL = new Float32Array(75);
+        this.jointDataR = new Float32Array(75);
+        this.gestureState = new Float32Array([0, 0, 0, 0]);
+        this.isPinchingLeft = false;
+        this.isPinchingRight = false;
     }
 
     compileShader(type, source) {
@@ -193,7 +372,11 @@ class GargantuaApp {
             this.lastMouseY = e.clientY;
         });
 
+        // Mouse Move for 360° Drag & Desktop Hand Interaction
         window.addEventListener('mousemove', (e) => {
+            this.mouseNormX = (e.clientX / window.innerWidth) * 2.0 - 1.0;
+            this.mouseNormY = -(e.clientY / window.innerHeight) * 2.0 + 1.0;
+
             if (!this.isDragging) return;
             const dx = e.clientX - this.lastMouseX;
             const dy = e.clientY - this.lastMouseY;
@@ -205,9 +388,9 @@ class GargantuaApp {
                 this.camera.theta = Math.max(0.02, Math.min(Math.PI - 0.02, this.camera.theta - dy * 0.005));
                 this.physics.observerInclinationDeg = (this.camera.theta * 180.0) / Math.PI;
             } else {
-                // 360° First Person Look
+                // 360° First Person Look: drag down to look down at your body/suit, drag up to look up
                 this.camera.povYaw += dx * 0.005;
-                this.camera.povPitch = Math.max(-Math.PI * 0.48, Math.min(Math.PI * 0.48, this.camera.povPitch + dy * 0.005));
+                this.camera.povPitch = Math.max(-Math.PI * 0.48, Math.min(Math.PI * 0.48, this.camera.povPitch - dy * 0.005));
             }
             this.updateTelemetry();
         });
@@ -285,6 +468,8 @@ class GargantuaApp {
                 this.toggleVisor();
             } else if (e.key === 'f' || e.key === 'F') {
                 this.toggleInfall();
+            } else if (e.key === 'b' || e.key === 'B') {
+                this.applyPreset(this.camera.mode === 'pov' && this.camera.povPitch < -0.3 ? 'movie-ref' : 'suit-inspect');
             } else if (e.key === ' ') {
                 this.autoOrbit = !this.autoOrbit;
                 const autoBtn = document.getElementById('btn-auto-orbit');
@@ -518,8 +703,9 @@ class GargantuaApp {
         }
 
         try {
+            // Enable Meta Quest Optical Hand Tracking & Bounded Floor
             const session = await navigator.xr.requestSession('immersive-vr', {
-                optionalFeatures: ['local-floor', 'bounded-floor']
+                optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
             });
             this.xrSession = session;
             this.isVR = true;
@@ -534,6 +720,8 @@ class GargantuaApp {
             session.addEventListener('end', () => {
                 this.xrSession = null;
                 this.isVR = false;
+                this.hands.left.active = false;
+                this.hands.right.active = false;
                 this.resize();
             });
 
@@ -544,12 +732,58 @@ class GargantuaApp {
                     const glLayer = this.xrSession.renderState.baseLayer;
                     gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer);
 
+                    // Scan Physical Hands & Controllers via WebXR Input Sources
+                    this.hands.left.active = false;
+                    this.hands.right.active = false;
+
+                    for (const inputSource of session.inputSources) {
+                        const handedness = inputSource.handedness;
+                        if (!handedness || !this.hands[handedness]) continue;
+
+                        if (inputSource.hand) {
+                            // Meta Quest Optical Hand Tracking (Real-time body hand scan)
+                            const wristJoint = inputSource.hand.get('wrist');
+                            const idxJoint = inputSource.hand.get('index-finger-tip');
+                            const thbJoint = inputSource.hand.get('thumb-tip');
+
+                            if (wristJoint) {
+                                const p = frame.getJointPose(wristJoint, this.xrRefSpace);
+                                if (p) {
+                                    this.hands[handedness].active = true;
+                                    this.hands[handedness].wrist = [p.transform.position.x, p.transform.position.y, p.transform.position.z];
+                                }
+                            }
+                            if (idxJoint) {
+                                const ip = frame.getJointPose(idxJoint, this.xrRefSpace);
+                                if (ip) {
+                                    this.hands[handedness].idx = [ip.transform.position.x, ip.transform.position.y, ip.transform.position.z];
+                                }
+                            }
+                            if (thbJoint) {
+                                const tp = frame.getJointPose(thbJoint, this.xrRefSpace);
+                                if (tp) {
+                                    this.hands[handedness].thb = [tp.transform.position.x, tp.transform.position.y, tp.transform.position.z];
+                                }
+                            }
+                        } else if (inputSource.gripSpace) {
+                            // Meta Quest Controller 6DoF Pose
+                            const p = frame.getPose(inputSource.gripSpace, this.xrRefSpace);
+                            if (p) {
+                                const pos = p.transform.position;
+                                const m = p.transform.matrix;
+                                this.hands[handedness].active = true;
+                                this.hands[handedness].wrist = [pos.x, pos.y, pos.z];
+                                this.hands[handedness].idx = [pos.x - m[8] * 0.10 + m[4] * 0.03, pos.y - m[9] * 0.10 + m[5] * 0.03, pos.z - m[10] * 0.10 + m[6] * 0.03];
+                                this.hands[handedness].thb = [pos.x - m[8] * 0.06 + m[0] * 0.03, pos.y - m[9] * 0.06 + m[1] * 0.03, pos.z - m[10] * 0.06 + m[2] * 0.03];
+                            }
+                        }
+                    }
+
                     for (const view of pose.views) {
                         const viewport = glLayer.getViewport(view);
                         gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
                         
-                        const eyeOffset = (view.eye === 'left') ? [-0.032, 0.0, 0.0] : [0.032, 0.0, 0.0];
-                        this.renderFrame(time, viewport.width, viewport.height, eyeOffset, true, view.transform.matrix);
+                        this.renderFrame(time, viewport.width, viewport.height, null, true, view, viewport);
                     }
                 }
                 session.requestAnimationFrame(onXRFrame);
@@ -559,6 +793,82 @@ class GargantuaApp {
         } catch (err) {
             console.error('WebXR session failed to start:', err);
             alert('Unable to start WebXR session: ' + err.message);
+        }
+    }
+
+    // Laptop Webcam Hand Scanner Integration
+    bindWebcamHands() {
+        const btn = document.getElementById('btn-webcam-hands');
+        if (!btn) return;
+        btn.addEventListener('click', () => this.toggleWebcamHands(btn));
+    }
+
+    async toggleWebcamHands(btn) {
+        if (this.webcamActive) {
+            if (this.webcamStream) {
+                this.webcamStream.getTracks().forEach(t => t.stop());
+                this.webcamStream = null;
+            }
+            this.webcamActive = false;
+            btn.classList.remove('active');
+            btn.textContent = '📷 Webcam Hand Scan';
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 320, height: 240, facingMode: 'user' }
+            });
+            this.webcamStream = stream;
+            this.webcamActive = true;
+            btn.classList.add('active');
+            btn.textContent = '📷 Webcam: Scanning Hands';
+
+            if (!this.webcamVideo) {
+                this.webcamVideo = document.createElement('video');
+                this.webcamVideo.autoplay = true;
+                this.webcamVideo.playsInline = true;
+                this.webcamVideo.muted = true;
+                this.webcamCanvas = document.createElement('canvas');
+                this.webcamCanvas.width = 40;
+                this.webcamCanvas.height = 30;
+                this.webcamCtx = this.webcamCanvas.getContext('2d', { willReadFrequently: true });
+            }
+            this.webcamVideo.srcObject = stream;
+        } catch (err) {
+            console.error('Webcam hand scan error:', err);
+            alert('Webcam access was denied or is unavailable: ' + err.message);
+        }
+    }
+
+    processWebcamFrame() {
+        if (!this.webcamActive || !this.webcamVideo || this.webcamVideo.readyState < 2) return;
+        const ctx = this.webcamCtx;
+        ctx.drawImage(this.webcamVideo, 0, 0, 40, 30);
+        const imgData = ctx.getImageData(0, 0, 40, 30).data;
+
+        let totalSkin = 0;
+        let skinX = 0;
+        let skinY = 0;
+
+        for (let i = 0; i < imgData.length; i += 4) {
+            const r = imgData[i], g = imgData[i+1], b = imgData[i+2];
+            if (r > 60 && g > 40 && b > 20 && r > g && r > b && (r - g) > 15) {
+                const px = (i / 4) % 40;
+                const py = Math.floor((i / 4) / 40);
+                skinX += px;
+                skinY += py;
+                totalSkin++;
+            }
+        }
+
+        if (totalSkin > 15) {
+            const normX = (1.0 - (skinX / totalSkin) / 40.0) * 2.0 - 1.0;
+            const normY = (1.0 - (skinY / totalSkin) / 30.0) * 2.0 - 1.0;
+            this.hands.right.active = true;
+            this.hands.right.wrist = [0.22 + normX * 0.16, -0.26 + normY * 0.14, 0.38];
+            this.hands.right.idx = [0.22 + normX * 0.16, -0.22 + normY * 0.14, 0.45];
+            this.hands.right.thb = [0.18 + normX * 0.16, -0.25 + normY * 0.14, 0.42];
         }
     }
 
@@ -620,6 +930,21 @@ class GargantuaApp {
         this.isCloseEncounter = false;
         this.isCinematicReference = false;
         switch (preset) {
+            case 'suit-inspect':
+                // First-Person EVA Space Suit Inspection View
+                this.camera.mode = 'pov';
+                this.camera.povYaw = 0.0;
+                this.camera.povPitch = -0.52; // Look down 30° directly at space suit chest & wrist HUD
+                this.camera.fov = 68.0;
+                this.helmetVisor = true;
+                this.autoOrbit = false;
+                const btnOrbit = document.getElementById('btn-mode-orbit');
+                const btnPOV = document.getElementById('btn-mode-pov');
+                if (btnOrbit && btnPOV) {
+                    btnPOV.classList.add('active');
+                    btnOrbit.classList.remove('active');
+                }
+                break;
             case 'infall-dive':
                 this.startInfall();
                 return;
@@ -787,7 +1112,7 @@ class GargantuaApp {
     resize() {
         const width = window.innerWidth;
         const height = window.innerHeight;
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.0);
 
         this.canvas.width = Math.floor(width * dpr);
         this.canvas.height = Math.floor(height * dpr);
@@ -875,7 +1200,7 @@ class GargantuaApp {
         requestAnimationFrame((t) => this.render(t));
     }
 
-    renderFrame(time, width, height, eyeOffset, isVR = false, xrMatrix = null) {
+    renderFrame(time, width, height, eyeOffset, isVR = false, xrView = null, xrViewport = null) {
         const gl = this.gl;
         const r = this.camera.distance;
         const th = this.camera.theta;
@@ -890,20 +1215,17 @@ class GargantuaApp {
         let targetZ = 0.0;
 
         if (this.camera.mode === 'pov') {
-            // Base forward vector pointing towards black hole center
             const camDist = Math.hypot(camX, camY, camZ) || 1.0;
             const f0x = -camX / camDist;
             const f0y = -camY / camDist;
             const f0z = -camZ / camDist;
 
-            // Right vector
             let r0x = f0y * this.camera.up[2] - f0z * this.camera.up[1];
             let r0y = f0z * this.camera.up[0] - f0x * this.camera.up[2];
             let r0z = f0x * this.camera.up[1] - f0y * this.camera.up[0];
             const rLen = Math.hypot(r0x, r0y, r0z) || 1.0;
             r0x /= rLen; r0y /= rLen; r0z /= rLen;
 
-            // Orthogonal Up vector
             const u0x = r0y * f0z - r0z * f0y;
             const u0y = r0z * f0x - r0x * f0z;
             const u0z = r0x * f0y - r0y * f0x;
@@ -924,20 +1246,224 @@ class GargantuaApp {
             targetZ = camZ + lookDirZ;
         }
 
+        let rayOrigin = [camX, camY, camZ];
+        let rayBasis = new Float32Array(9);
+        let tanHalfFov = [Math.tan((this.camera.fov * Math.PI / 180.0) * 0.5) * (width / height), Math.tan((this.camera.fov * Math.PI / 180.0) * 0.5)];
+        let fovOffset = [0.0, 0.0];
+        let maxSteps = this.physics.raymarchSteps;
+
+        // Local Astronaut Space Suit Hand Tracking Coordinates
+        let localHandL = [0, 0, 0];
+        let localHandR = [0, 0, 0];
+        let localHandL_idx = [0, 0, 0];
+        let localHandR_idx = [0, 0, 0];
+        let localHandL_thb = [0, 0, 0];
+        let localHandR_thb = [0, 0, 0];
+
+        if (isVR && xrView) {
+            // WebXR View Matrix & Projection Matrix for Meta Quest
+            const m = xrView.transform.matrix;
+            const p = xrView.projectionMatrix;
+
+            // Base orbital coordinate frame facing black hole center (0,0,0)
+            const camDist = Math.hypot(camX, camY, camZ) || 1.0;
+            const f0x = -camX / camDist;
+            const f0y = -camY / camDist;
+            const f0z = -camZ / camDist;
+
+            let r0x = f0y * this.camera.up[2] - f0z * this.camera.up[1];
+            let r0y = f0z * this.camera.up[0] - f0x * this.camera.up[2];
+            let r0z = f0x * this.camera.up[1] - f0y * this.camera.up[0];
+            const rLen = Math.hypot(r0x, r0y, r0z) || 1.0;
+            r0x /= rLen; r0y /= rLen; r0z /= rLen;
+
+            const u0x = r0y * f0z - r0z * f0y;
+            const u0y = r0z * f0x - r0x * f0z;
+            const u0z = r0x * f0y - r0y * f0x;
+
+            // Headset pose in WebXR tracking space:
+            const hRx = m[0], hRy = m[1], hRz = m[2];
+            const hUx = m[4], hUy = m[5], hUz = m[6];
+            const hFx = -m[8], hFy = -m[9], hFz = -m[10];
+            const hPx = m[12], hPy = m[13], hPz = m[14];
+
+            // Transform headset rotation into world orbit space
+            const worldRx = r0x * hRx + u0x * hRy - f0x * hRz;
+            const worldRy = r0y * hRx + u0y * hRy - f0y * hRz;
+            const worldRz = r0z * hRx + u0z * hRy - f0z * hRz;
+
+            const worldUx = r0x * hUx + u0x * hUy - f0x * hUz;
+            const worldUy = r0y * hUx + u0y * hUy - f0y * hUz;
+            const worldUz = r0z * hUx + u0z * hUy - f0z * hUz;
+
+            const worldFx = r0x * hFx + u0x * hFy - f0x * hFz;
+            const worldFy = r0y * hFx + u0y * hFy - f0y * hFz;
+            const worldFz = r0z * hFx + u0z * hFy - f0z * hFz;
+
+            // Transformed Eye Origin with physical headset IPD separation:
+            const eyeX = camX + (r0x * hPx + u0x * hPy - f0x * hPz);
+            const eyeY = camY + (r0y * hPx + u0y * hPy - f0y * hPz);
+            const eyeZ = camZ + (r0z * hPx + u0z * hPy - f0z * hPz);
+
+            rayOrigin = [eyeX, eyeY, eyeZ];
+            rayBasis = new Float32Array([
+                worldRx, worldRy, worldRz,
+                worldUx, worldUy, worldUz,
+                worldFx, worldFy, worldFz
+            ]);
+
+            // Exact projection tangents directly from Oculus Quest lenses
+            tanHalfFov = [1.0 / p[0], 1.0 / p[5]];
+            fovOffset = [-p[8] / p[0], -p[9] / p[5]];
+            maxSteps = 72; // Optimized for smooth 72/90 FPS in Meta Quest
+
+            // Map tracked physical hands into local headset camera space
+            const toHeadsetLocal = (pt) => {
+                const dx = pt[0] - hPx;
+                const dy = pt[1] - hPy;
+                const dz = pt[2] - hPz;
+                return [
+                    dx * hRx + dy * hRy + dz * hRz,
+                    dx * hUx + dy * hUy + dz * hUz,
+                    dx * hFx + dy * hFy + dz * hFz
+                ];
+            };
+
+            // Process 25-Joint WebXR Hand Tracking if available
+            let webxrHandFound = false;
+            if (xrFrame && this.xrSession && this.xrRefSpace) {
+                for (const inputSource of this.xrSession.inputSources) {
+                    if (inputSource.hand) {
+                        webxrHandFound = true;
+                        const isLeft = inputSource.handedness === 'left';
+                        const targetArray = isLeft ? this.jointDataL : this.jointDataR;
+
+                        for (let j = 0; j < XR_HAND_JOINTS.length; j++) {
+                            const jointName = XR_HAND_JOINTS[j];
+                            const joint = inputSource.hand.get(jointName);
+                            if (joint) {
+                                const pose = xrFrame.getJointPose(joint, this.xrRefSpace);
+                                if (pose) {
+                                    const pos = pose.transform.position;
+                                    const loc = toHeadsetLocal([pos.x, pos.y, pos.z]);
+                                    targetArray[j * 3 + 0] = loc[0];
+                                    targetArray[j * 3 + 1] = loc[1];
+                                    targetArray[j * 3 + 2] = loc[2];
+                                }
+                            }
+                        }
+
+                        // Calculate Euclidean pinch distance: Thumb Tip (4) to Index Tip (9)
+                        const tX = targetArray[4 * 3 + 0], tY = targetArray[4 * 3 + 1], tZ = targetArray[4 * 3 + 2];
+                        const iX = targetArray[9 * 3 + 0], iY = targetArray[9 * 3 + 1], iZ = targetArray[9 * 3 + 2];
+                        const pinchDist = Math.hypot(tX - iX, tY - iY, tZ - iZ);
+                        const isPinching = pinchDist < 0.022;
+
+                        if (isLeft) this.isPinchingLeft = isPinching;
+                        else this.isPinchingRight = isPinching;
+                    }
+                }
+            }
+
+            if (!webxrHandFound) {
+                // Procedural fallback kinematics in VR when optical tracking is initializing
+                buildProceduralAxemuHand(true, time, 0, 0, false, this.jointDataL);
+                buildProceduralAxemuHand(false, time, 0, 0, false, this.jointDataR);
+            }
+        } else {
+            // Desktop / Laptop: Process Webcam hands if active
+            if (this.webcamActive) {
+                this.processWebcamFrame();
+            }
+
+            // Procedural 25-Joint Skinned Hands for Desktop Interaction & Inspection
+            const isPinching = this.isDragging;
+            buildProceduralAxemuHand(true, time, 0, 0, false, this.jointDataL);
+            buildProceduralAxemuHand(false, time, this.mouseNormX, this.mouseNormY, isPinching, this.jointDataR);
+
+            this.hands.left.active = true;
+            this.hands.right.active = true;
+
+            // Desktop / Mobile Gyro Ray Generation
+            let forward = [targetX - camX, targetY - camY, targetZ - camZ];
+            const fLen = Math.hypot(forward[0], forward[1], forward[2]) || 1.0;
+            forward = [forward[0] / fLen, forward[1] / fLen, forward[2] / fLen];
+
+            let right = [
+                forward[1] * this.camera.up[2] - forward[2] * this.camera.up[1],
+                forward[2] * this.camera.up[0] - forward[0] * this.camera.up[2],
+                forward[0] * this.camera.up[1] - forward[1] * this.camera.up[0]
+            ];
+            const rLen = Math.hypot(right[0], right[1], right[2]) || 1.0;
+            right = [right[0] / rLen, right[1] / rLen, right[2] / rLen];
+
+            let up = [
+                right[1] * forward[2] - right[2] * forward[1],
+                right[2] * forward[0] - right[0] * forward[2],
+                right[0] * forward[1] - right[1] * forward[0]
+            ];
+
+            if (this.gyroEnabled) {
+                const gm = this.gyroMatrix;
+                const applyG = (v) => [
+                    gm[0] * v[0] + gm[1] * v[1] + gm[2] * v[2],
+                    gm[3] * v[0] + gm[4] * v[1] + gm[5] * v[2],
+                    gm[6] * v[0] + gm[7] * v[1] + gm[8] * v[2]
+                ];
+                right = applyG(right);
+                up = applyG(up);
+                forward = applyG(forward);
+            }
+
+            rayBasis = new Float32Array([
+                right[0], right[1], right[2],
+                up[0], up[1], up[2],
+                forward[0], forward[1], forward[2]
+            ]);
+            tanHalfFov = [Math.tan((this.camera.fov * Math.PI / 180.0) * 0.5) * (width / height), Math.tan((this.camera.fov * Math.PI / 180.0) * 0.5)];
+            fovOffset = [0.0, 0.0];
+        }
+
+        // Two-Hand Span Distance Calculation (For Dynamic Gesture Zoom / Scaling)
+        const handSpan = Math.hypot(
+            this.jointDataL[0] - this.jointDataR[0],
+            this.jointDataL[1] - this.jointDataR[1],
+            this.jointDataL[2] - this.jointDataR[2]
+        );
+
         gl.useProgram(this.program);
         gl.bindVertexArray(this.vao);
 
-        // Upload Uniforms
+        // Upload Viewport & Global Uniforms
+        const vp = xrViewport || { x: 0, y: 0, width, height };
         gl.uniform2f(this.uniforms.u_resolution, width, height);
+        gl.uniform4f(this.uniforms.u_viewport, vp.x, vp.y, vp.width, vp.height);
         gl.uniform1f(this.uniforms.u_time, (time - this.startTime) * 0.001 * this.physics.simulationRate);
         gl.uniform3f(this.uniforms.u_camPos, camX, camY, camZ);
         gl.uniform3f(this.uniforms.u_camTarget, targetX, targetY, targetZ);
         gl.uniform3f(this.uniforms.u_camUp, this.camera.up[0], this.camera.up[1], this.camera.up[2]);
         gl.uniform1f(this.uniforms.u_fov, this.camera.fov);
-        gl.uniform3fv(this.uniforms.u_eyeOffset, eyeOffset);
+        gl.uniform3fv(this.uniforms.u_eyeOffset, [0.0, 0.0, 0.0]);
         gl.uniform1f(this.uniforms.u_isVR, isVR ? 1.0 : 0.0);
         gl.uniformMatrix3fv(this.uniforms.u_vrOrientation, false, this.gyroMatrix);
 
+        // WebXR & Desktop Ray Generation Uniforms
+        gl.uniform3fv(this.uniforms.u_rayOrigin, rayOrigin);
+        gl.uniformMatrix3fv(this.uniforms.u_rayBasis, false, rayBasis);
+        gl.uniform2f(this.uniforms.u_tanHalfFov, tanHalfFov[0], tanHalfFov[1]);
+        gl.uniform2f(this.uniforms.u_fovOffset, fovOffset[0], fovOffset[1]);
+
+        // Axiom AxEMU 25-Joint Skinned Hands & WebXR Gesture Uniforms
+        gl.uniform3fv(this.uniforms.u_jointsL, this.jointDataL);
+        gl.uniform3fv(this.uniforms.u_jointsR, this.jointDataR);
+        gl.uniform4f(this.uniforms.u_gestureState, this.isPinchingLeft ? 1.0 : 0.0, this.isPinchingRight ? 1.0 : 0.0, handSpan, 1.0);
+
+        const currentBPM = (this.audio && this.audio.currentHeartRateBPM) ? this.audio.currentHeartRateBPM : 75.0;
+        gl.uniform1f(this.uniforms.u_heartRateBPM, currentBPM);
+        gl.uniform1f(this.uniforms.u_timeDilation, this.physics.timeDilationMultiplier || 1.0);
+        gl.uniform1f(this.uniforms.u_horizonDist, this.camera.distance / Math.max(0.1, this.physics.eventHorizonGM));
+
+        // Physics Parameters
         gl.uniform1f(this.uniforms.u_spin, this.physics.spin);
         gl.uniform1f(this.uniforms.u_orbitSign, this.physics.diskPrograde ? 1.0 : -1.0);
         gl.uniform1f(this.uniforms.u_rIn, this.physics.innerRadiusResolvedGM);
@@ -954,7 +1480,7 @@ class GargantuaApp {
         gl.uniform1f(this.uniforms.u_photonIntensity, this.physics.photonRingIntensity);
         gl.uniform1f(this.uniforms.u_photonSharpness, this.physics.photonRingSharpness);
         gl.uniform1f(this.uniforms.u_exposure, this.physics.exposure);
-        gl.uniform1i(this.uniforms.u_maxSteps, this.physics.raymarchSteps);
+        gl.uniform1i(this.uniforms.u_maxSteps, maxSteps);
         gl.uniform1f(this.uniforms.u_stepScale, 1.0);
         gl.uniform1f(this.uniforms.u_captureR, this.physics.eventHorizonGM);
         gl.uniform1f(this.uniforms.u_cinematicDisk, this.isCinematicReference ? 1.0 : 0.0);

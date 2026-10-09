@@ -162,6 +162,10 @@ export class SpaceSoundSynthesizer {
         }
     }
 
+    get currentHeartRateBPM() {
+        return this.heartRateBpm || 68.0;
+    }
+
     updateClockRate(dilationMultiplier) {
         if (!this.ctx || !this.isPlaying) return;
         if (this.droneGain) {
@@ -170,3 +174,4 @@ export class SpaceSoundSynthesizer {
         }
     }
 }
+
