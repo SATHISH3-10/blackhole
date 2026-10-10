@@ -29,7 +29,7 @@ export class KerrPhysics {
         this.photonRingSharpness = 26.0;
         this.simulationRate = 6.0;
         this.exposure = 1.25;
-        this.raymarchSteps = 72;
+        this.raymarchSteps = 140;
     }
 
     // SI Conversions

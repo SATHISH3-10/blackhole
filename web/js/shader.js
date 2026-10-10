@@ -194,24 +194,30 @@ vec4 SampleAccretionDiskCrossing(vec3 hitPos, vec3 rayDir) {
     float r = length(hitPos.xz);
     if (r < u_rIn || r > u_rOut) return vec4(0.0);
 
+    // Relativistic Circular Keplerian Orbital Velocity in Kerr spacetime
     vec3 phiVec = normalize(vec3(hitPos.z, 0.0, -hitPos.x)) * u_orbitSign;
-    float beta = min(0.985, inversesqrt(max(r - 2.0 + u_spin * 0.5, 0.06)));
-    float gamma = inversesqrt(max(1.0 - beta * beta, 0.001));
+    float beta = clamp(1.0 / sqrt(max(r, 1.2)), 0.0, 0.85);
+    float gamma = inversesqrt(max(1.0 - beta * beta, 0.01));
     vec3 n = -rayDir;
 
-    float D = 1.0 / (gamma * max(1.0 - beta * dot(phiVec, n), 0.01));
-    float gGrav = sqrt(max(1.0 - 2.0 / r, 0.0));
+    // Relativistic Doppler Beaming factor
+    float D = 1.0 / (gamma * max(1.0 - beta * dot(phiVec, n), 0.08));
+    
+    // True Kerr Gravitational Redshift (Horizon is at r_H = 1 + sqrt(1 - a^2) ~ 1.063 rg for a=0.998)
+    float rHorizon = 1.0 + sqrt(max(0.0, 1.0 - u_spin * u_spin));
+    float gGrav = sqrt(max(1.0 - rHorizon / max(r, rHorizon + 0.01), 0.0));
     float g = mix(1.0, D, u_dopplerOn) * mix(1.0, gGrav, u_redshiftOn);
+    g = clamp(g, 0.08, 4.5);
 
     float flowPattern = InterstellarPlasmaFlow(hitPos.xz, r);
     float scaleHeight = max(0.03, u_diskThickness * sqrt(r / u_rIn));
     float slantPath = (2.0 * scaleHeight) / max(abs(rayDir.y), 0.045);
 
     float rNorm = (r - u_rIn) / max(u_rOut - u_rIn, 0.1);
-    float radialDecay = pow(max(1.0 - rNorm, 0.0), 1.6);
-    float innerGlow = smoothstep(u_rIn * 2.8, u_rIn, r) * 1.5;
+    float radialDecay = pow(max(1.0 - rNorm, 0.0), 1.5);
+    float innerGlow = smoothstep(u_rIn * 2.8, u_rIn, r) * 1.6;
 
-    float radiance = (radialDecay * 1.8 + innerGlow * 1.6) * pow(max(g, 0.0), 1.5) * (0.4 + 0.6 * flowPattern) * u_diskBrightness;
+    float radiance = (radialDecay * 1.8 + innerGlow * 1.6) * pow(g, 1.35) * (0.4 + 0.6 * flowPattern) * u_diskBrightness;
     vec3 emission = InterstellarColorGrading(r, g, flowPattern) * radiance;
 
     float innerFade = smoothstep(u_rIn, u_rIn * 1.03, r);
@@ -650,8 +656,8 @@ void main() {
                 break;
             }
 
-            // Smooth adaptive integration step size
-            float dt = u_stepScale * clamp(0.040 * r + 0.010 * sqrt(r), 0.012, 3.2);
+            // Smooth adaptive integration step size: efficient in distant space, ultra-fine near photon sphere
+            float dt = u_stepScale * clamp(0.035 * r * (1.0 + 0.055 * max(r - 6.0, 0.0)), 0.014, 3.8);
 
             // 2nd-Order Runge-Kutta (Midpoint) Symplectic Integration
             vec3 k1 = GetGeodesicAcc(pos, vel);
@@ -664,7 +670,8 @@ void main() {
 
             // Exact Equatorial Plane Crossing (Accretion Disk Lensing Arch & Front Band)
             if (pos.y * pn.y <= 0.0 && transmit > 0.005) {
-                float tCross = clamp(-pos.y / (pn.y - pos.y + 1e-7), 0.0, 1.0);
+                float dy = pn.y - pos.y;
+                float tCross = clamp(-pos.y / (abs(dy) < 1e-6 ? (dy < 0.0 ? -1e-6 : 1e-6) : dy), 0.0, 1.0);
                 vec3 hitPlane = mix(pos, pn, tCross);
                 float planeR = length(hitPlane.xz);
                 

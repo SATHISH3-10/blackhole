@@ -226,9 +226,9 @@ class GargantuaApp {
         this.ultraPerformanceMode = this.isOculus || this.isMobile;
 
         if (this.ultraPerformanceMode) {
-            this.physics.raymarchSteps = 32; // Rock-solid 72/90 FPS on Meta Quest 3
+            this.physics.raymarchSteps = 80; // Rock-solid 72/90 FPS on Meta Quest 3 with full halo!
         } else {
-            this.physics.raymarchSteps = 56;
+            this.physics.raymarchSteps = 140; // Full round-trip geodesic tracing for upper & lower lensing arcs
         }
 
         this.initGL();
@@ -1102,6 +1102,7 @@ class GargantuaApp {
         updateControl('slider-brightness', this.physics.diskBrightness.toFixed(1), this.physics.diskBrightness.toFixed(1));
         updateControl('slider-thickness', this.physics.diskThicknessGM.toFixed(2), this.physics.diskThicknessGM.toFixed(2) + ' rg');
         updateControl('slider-temp', this.physics.diskMaxTempK, this.physics.diskMaxTempK + ' K');
+        updateControl('slider-quality', this.physics.raymarchSteps, this.physics.raymarchSteps + ' Steps');
 
         const visorCb = document.getElementById('toggle-helmet-visor');
         if (visorCb) visorCb.checked = this.helmetVisor;
@@ -1342,7 +1343,7 @@ class GargantuaApp {
             // Exact projection tangents directly from Oculus Quest lenses
             tanHalfFov = [1.0 / p[0], 1.0 / p[5]];
             fovOffset = [-p[8] / p[0], -p[9] / p[5]];
-            maxSteps = 26; // Dual-eye WebXR VR mode on Meta Quest (72/90 FPS rock solid)
+            maxSteps = 64; // Dual-eye WebXR VR mode on Meta Quest with complete lensing halo (72/90 FPS)
 
             // Map tracked physical hands into local headset camera space
             const toHeadsetLocal = (pt) => {
