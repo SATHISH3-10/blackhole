@@ -705,23 +705,27 @@ class GargantuaApp {
         const vrBtn = document.getElementById('btn-webxr-vr');
         if (!vrBtn) return;
 
+        vrBtn.addEventListener('click', () => this.startXRSession());
+
         if (navigator.xr) {
             navigator.xr.isSessionSupported('immersive-vr').then(supported => {
                 if (supported) {
                     vrBtn.style.display = 'inline-flex';
-                    vrBtn.addEventListener('click', () => this.startXRSession());
-                } else {
-                    vrBtn.title = 'WebXR VR supported in Meta Quest / VR Headset Browsers';
+                    vrBtn.classList.add('active');
+                    vrBtn.title = 'Click to Enter 360° VR in Meta Quest';
                 }
             }).catch(() => {});
-        } else {
-            vrBtn.title = 'WebXR not available in this browser environment.';
         }
     }
 
     async startXRSession() {
         if (this.xrSession) {
             await this.xrSession.end();
+            return;
+        }
+
+        if (!navigator.xr) {
+            alert('WebXR is only available in VR headset browsers (such as Meta Quest Browser) over HTTPS.');
             return;
         }
 
