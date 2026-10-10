@@ -17,16 +17,16 @@ export function buildProceduralAxemuHand(isLeft, time, mouseX, mouseY, isPinch, 
     const side = isLeft ? -1.0 : 1.0;
     const wave = Math.sin(time * 0.002);
     
-    // Wrist base position in local camera space
+    // Wrist base position in local camera space: framed naturally in lower view
     let wX, wY, wZ;
     if (isLeft) {
-        wX = -0.22;
-        wY = -0.22 + 0.005 * wave;
-        wZ = 0.35 + 0.004 * wave;
+        wX = -0.16;
+        wY = -0.12 + 0.005 * wave;
+        wZ = 0.32 + 0.004 * wave;
     } else {
-        wX = 0.22 + mouseX * 0.035;
-        wY = -0.22 + mouseY * 0.035;
-        wZ = 0.35;
+        wX = 0.16 + mouseX * 0.035;
+        wY = -0.12 + mouseY * 0.035;
+        wZ = 0.32;
     }
 
     // Joint 0: Wrist
@@ -978,44 +978,42 @@ class GargantuaApp {
                 return;
             case 'movie-ref':
             case 'gargantua-imax':
-                // A quiet cinematic framing: a dark shadow, a thin bright plane,
-                // and enough surrounding sky for the scale to register.
-                this.camera.distance = 18.0;
-                this.camera.theta = (84.5 * Math.PI) / 180.0; // 5.5° above equatorial plane
-                this.camera.phi = 0.0;
-                this.camera.target = [0.0, 0.0, 0.0];
-                this.camera.up = [0.0, 1.0, 0.0];
-                this.camera.fov = 54.0;
-                this.camera.mode = 'orbit';
-                this.physics.spin = 0.998;
-                this.physics.diskBrightness = 0.92;
-                this.physics.diskThicknessGM = 0.055;
-                this.physics.diskMaxTempK = 6800;
-                this.physics.photonRingIntensity = 2.2;
-                this.physics.photonRingSharpness = 30.0;
-                this.physics.exposure = 0.90;
-                this.helmetVisor = false;
-                this.autoOrbit = false;
-                this.isCinematicReference = true;
-                break;
-            case 'close-encounter':
-                // Default experiential view. The motion is deliberately slow:
-                // the changing star field and disk reveal the proximity before
-                // the viewer consciously notices an animation.
-                this.camera.distance = 19.0;
-                this.camera.theta = (86.8 * Math.PI) / 180.0;
-                this.camera.phi = 0.22;
+                // A majestic cinematic framing: curved gravitational lensing halo arcs over and under,
+                // spherical black hole shadow in the center, and glowing honey-amber accretion disk.
+                this.camera.distance = 14.5;
+                this.camera.theta = (76.8 * Math.PI) / 180.0; // 13.2° above equatorial plane - Canonical Interstellar / Kip Thorne view!
+                this.camera.phi = 0.05;
                 this.camera.target = [0.0, 0.0, 0.0];
                 this.camera.up = [0.0, 1.0, 0.0];
                 this.camera.fov = 62.0;
                 this.camera.mode = 'orbit';
                 this.physics.spin = 0.998;
-                this.physics.diskBrightness = 1.02;
-                this.physics.diskThicknessGM = 0.065;
+                this.physics.diskBrightness = 1.95;
+                this.physics.diskThicknessGM = 0.18;
                 this.physics.diskMaxTempK = 6500;
-                this.physics.photonRingIntensity = 1.45;
+                this.physics.photonRingIntensity = 2.4;
+                this.physics.photonRingSharpness = 28.0;
+                this.physics.exposure = 1.05;
+                this.helmetVisor = false;
+                this.autoOrbit = true;
+                this.isCinematicReference = true;
+                break;
+            case 'close-encounter':
+                // Close encounter view with deep volumetric Keplerian accretion disk and lensing
+                this.camera.distance = 13.5;
+                this.camera.theta = (76.5 * Math.PI) / 180.0;
+                this.camera.phi = 0.22;
+                this.camera.target = [0.0, 0.0, 0.0];
+                this.camera.up = [0.0, 1.0, 0.0];
+                this.camera.fov = 64.0;
+                this.camera.mode = 'orbit';
+                this.physics.spin = 0.998;
+                this.physics.diskBrightness = 2.0;
+                this.physics.diskThicknessGM = 0.20;
+                this.physics.diskMaxTempK = 6500;
+                this.physics.photonRingIntensity = 2.2;
                 this.physics.photonRingSharpness = 27.0;
-                this.physics.exposure = 0.94;
+                this.physics.exposure = 1.08;
                 this.helmetVisor = false;
                 this.autoOrbit = true;
                 this.encounterDrift = 0.0;

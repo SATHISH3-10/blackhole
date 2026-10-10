@@ -12,13 +12,13 @@ export class KerrPhysics {
         this.massSolar = 1.0e8;       // Gargantua: 100 million solar masses
         this.spin = 0.998;            // High Kerr spin a* = a/M (Interstellar accurate)
         this.diskPrograde = true;
-        this.observerDistanceGM = 5.2; // Low-altitude cloud-skimming flight
-        this.observerInclinationDeg = 88.4; // Skimming parallel to golden cloud ocean
-        this.observerAzimuthDeg = 1.25;
+        this.observerDistanceGM = 14.5; // Canonical Interstellar IMAX cinematic distance
+        this.observerInclinationDeg = 76.8; // 13.2° above plane - curved lensing halo visible over and under
+        this.observerAzimuthDeg = 0.05;
         this.diskTiltDeg = 0.0;
-        this.diskBrightness = 2.4;
+        this.diskBrightness = 1.95;
         this.diskMaxTempK = 6500; // Warm honey, amber & peach gold
-        this.diskThicknessGM = 0.24;
+        this.diskThicknessGM = 0.18;
         this.diskOpacity = 0.95;
         this.lensingStrength = 1.0;
         this.kerrGeodesics = true;

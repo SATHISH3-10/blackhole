@@ -400,18 +400,14 @@ SuitHit EvaluateSkinnedHand(vec3 p, vec3 j[25], bool isLeft) {
     return res;
 }
 
-// Evaluates the full Axiom AxEMU Spacesuit embodiment in 3D with hierarchical bounding sphere culling
+// Evaluates the full Axiom AxEMU Spacesuit embodiment in 3D
 SuitHit AstronautSuitSDF(vec3 p) {
-    // Fast bounding check: suit only exists below eye level and within frontal cone
-    if (p.y > 0.08 || p.z < -0.15 || p.z > 1.25) {
-        return SuitHit(max(p.y - 0.06, 0.12), 0.0, p);
-    }
-
     SuitHit res = SuitHit(1e5, 0.0, p);
 
-    // 1. Torso & Upper Chest Unit (Hierarchical Bounding Sphere: center at (0, -0.45, 0.10))
-    float dTorsoBound = length(p - vec3(0.0, -0.45, 0.10));
-    if (dTorsoBound < 0.36) {
+    // 1. Torso & Upper Chest Unit (Exact Bounding Sphere: center at (0, -0.45, 0.10))
+    vec3 torsoCenter = vec3(0.0, -0.45, 0.10);
+    float dTorsoBound = length(p - torsoCenter) - 0.28;
+    if (dTorsoBound < 0.04) {
         vec3 torsoP = p - vec3(0.0, -0.48, 0.08);
         float dChest = sdRoundBox(torsoP, vec3(0.18, 0.14, 0.08), 0.06);
         float dCollar = sdTorus(p - vec3(0.0, -0.28, 0.10), vec2(0.12, 0.016));
@@ -439,7 +435,7 @@ SuitHit AstronautSuitSDF(vec3 p) {
         float dNeckRing = sdTorus(p - vec3(0.0, -0.26, 0.10), vec2(0.125, 0.007));
         res = opUnion(res, SuitHit(dNeckRing, 5.0, p));
     } else {
-        res = opUnion(res, SuitHit(dTorsoBound - 0.28, 1.0, p));
+        res = opUnion(res, SuitHit(dTorsoBound, 1.0, p));
     }
 
     // 2. Forearm Sleeves with Charcoal Convolute Elbow Pleats & Red Racing Seams
@@ -460,47 +456,25 @@ SuitHit AstronautSuitSDF(vec3 p) {
     float dRedArmR = sdCapsule(p, rElbow + vec3(0.022, 0.0, 0.0), rWrist + vec3(0.018, 0.0, 0.0), 0.003);
     res = opUnion(res, SuitHit(dRedArmR, 2.0, p));
 
-    // 3. 25-Joint Skinned AxEMU Gloves (Hierarchical Bounding Sphere Culling)
-    // Left Hand: Only evaluate complex fingers if within 15cm of wrist!
-    float dWristL = length(p - lWrist);
-    if (dWristL < 0.15) {
+    // 3. 25-Joint Skinned AxEMU Gloves (Exact Bounding Spheres)
+    // Left Hand Bounding Sphere
+    vec3 lHandCtr = mix(lWrist, u_jointsL[12], 0.45);
+    float dHandLBound = length(p - lHandCtr) - 0.095;
+    if (dHandLBound < 0.02) {
         SuitHit handLHit = EvaluateSkinnedHand(p, u_jointsL, true);
         res = opUnion(res, handLHit);
     } else {
-        res = opUnion(res, SuitHit(dWristL - 0.11, 1.0, p));
+        res = opUnion(res, SuitHit(dHandLBound, 1.0, p));
     }
 
-    // Right Hand: Only evaluate complex fingers if within 15cm of wrist!
-    float dWristR = length(p - rWrist);
-    if (dWristR < 0.15) {
+    // Right Hand Bounding Sphere
+    vec3 rHandCtr = mix(rWrist, u_jointsR[12], 0.45);
+    float dHandRBound = length(p - rHandCtr) - 0.095;
+    if (dHandRBound < 0.02) {
         SuitHit handRHit = EvaluateSkinnedHand(p, u_jointsR, false);
         res = opUnion(res, handRHit);
     } else {
-        res = opUnion(res, SuitHit(dWristR - 0.11, 1.0, p));
-    }
-
-    // 4. Lower Body (Only evaluated if ray reaches down to legs: p.y < -0.50)
-    if (p.y < -0.50) {
-        vec3 lKnee = vec3(-0.12, -0.76, 0.12);
-        vec3 rKnee = vec3(0.12, -0.76, 0.12);
-        vec3 lFoot = vec3(-0.12, -1.05, 0.16);
-        vec3 rFoot = vec3(0.12, -1.05, 0.16);
-
-        float dThighL = sdTaperedCapsule(p, vec3(-0.11, -0.54, 0.08), lKnee, 0.046, 0.040);
-        float dThighR = sdTaperedCapsule(p, vec3(0.11, -0.54, 0.08), rKnee, 0.046, 0.040);
-        res = opUnion(res, SuitHit(min(dThighL, dThighR), 1.0, p));
-
-        float dKneeL = sdRoundBox(p - lKnee, vec3(0.042, 0.038, 0.020), 0.005);
-        float dKneeR = sdRoundBox(p - rKnee, vec3(0.042, 0.038, 0.020), 0.005);
-        res = opUnion(res, SuitHit(min(dKneeL, dKneeR), 3.0, p));
-
-        float dShinL = sdTaperedCapsule(p, lKnee, lFoot, 0.042, 0.046);
-        float dShinR = sdTaperedCapsule(p, rKnee, rFoot, 0.042, 0.046);
-        res = opUnion(res, SuitHit(min(dShinL, dShinR), 1.0, p));
-
-        float dSoleL = sdRoundBox(p - (lFoot + vec3(0.0, -0.04, 0.02)), vec3(0.048, 0.015, 0.075), 0.005);
-        float dSoleR = sdRoundBox(p - (rFoot + vec3(0.0, -0.04, 0.02)), vec3(0.048, 0.015, 0.075), 0.005);
-        res = opUnion(res, SuitHit(min(dSoleL, dSoleR), 8.0, p));
+        res = opUnion(res, SuitHit(dHandRBound, 1.0, p));
     }
 
     return res;
@@ -636,19 +610,19 @@ void main() {
     SuitHit suitHitResult = SuitHit(1e5, 0.0, vec3(0.0));
     bool hitSuit = false;
 
-    // Early exit: suit & hands only exist in the lower viewing frustum (y < 0.12)
-    if (rayDirLocal.y < 0.12) {
-        for (int s = 0; s < 12; s++) {
+    // Early exit: suit & hands only exist in the lower viewing frustum (y < 0.18)
+    if (rayDirLocal.y < 0.18) {
+        for (int s = 0; s < 22; s++) {
             vec3 pSuit = localRayOrigin + rayDirLocal * tSuit;
             SuitHit h = AstronautSuitSDF(pSuit);
-            if (h.d < 0.0035) {
+            if (h.d < 0.0045) {
                 suitHitResult = h;
                 suitHitResult.localPos = pSuit;
                 hitSuit = true;
                 break;
             }
-            tSuit += max(h.d * 0.92, 0.008);
-            if (tSuit > 1.15) break;
+            tSuit += max(h.d * 0.82, 0.004);
+            if (tSuit > 0.95) break;
         }
 
         if (hitSuit) {
