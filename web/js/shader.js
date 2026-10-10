@@ -141,7 +141,7 @@ vec3 CosmicSkybox(vec3 dir) {
     return deepSpace + dustColor * 0.42 + starBrightness * starTint * 1.2;
 }
 
-// Continuous Keplerian Plasma Streams (True Fluid Flow Around the Black Hole)
+// Continuous Keplerian Plasma Streams (Fluid Flow Around the Black Hole)
 float InterstellarPlasmaFlow(vec2 xz, float r) {
     float phi = atan(xz.y, xz.x);
     float omega = 1.6 / (pow(r, 1.5) + u_spin * u_orbitSign * 0.4);
@@ -150,25 +150,12 @@ float InterstellarPlasmaFlow(vec2 xz, float r) {
     float logR = log(max(r, 0.5));
     vec2 spiralCoord = vec2(phiRot * 2.2 - logR * 3.8, logR * 2.5);
 
-    vec2 warp = vec2(
-        FBM2D(spiralCoord * 1.2 + vec2(0.0, u_time * 0.02)),
-        FBM2D(spiralCoord * 1.2 + vec2(3.5, 1.8))
-    );
-    
-    vec2 pWarped = spiralCoord + warp * 0.85;
-    float baseTurb = FBM2D(pWarped * 1.4);
+    float baseTurb = FBM2D(spiralCoord * 1.35 + vec2(u_time * 0.02, 0.0));
     float billows = 1.0 - abs(baseTurb - 0.5) * 2.0;
-    float fineStreams = FBM2D(pWarped * 2.25 + vec2(u_time * 0.028, 0.0));
+    float ribbon = 0.5 + 0.5 * sin(phiRot * 4.0 - logR * 5.5 + baseTurb * 2.2);
     
-    if (u_cinematicDisk > 0.5) {
-        float slowWarp = FBM2D(vec2(phiRot * 1.15 - logR * 2.0, logR * 1.4));
-        float ribbon = 0.5 + 0.5 * sin(phiRot * 4.0 - logR * 5.5 + slowWarp * 1.8);
-        return clamp(0.56 + 0.24 * slowWarp + 0.20 * ribbon, 0.0, 1.0);
-    }
-
-    float pattern = mix(billows, fineStreams, 0.30);
-    pattern = smoothstep(0.18, 0.82, pattern);
-    return pattern;
+    float pattern = mix(billows, ribbon, 0.35);
+    return smoothstep(0.18, 0.82, pattern);
 }
 
 // Authentic Interstellar Color Gradient:
@@ -413,42 +400,47 @@ SuitHit EvaluateSkinnedHand(vec3 p, vec3 j[25], bool isLeft) {
     return res;
 }
 
-// Evaluates the full Axiom AxEMU Spacesuit embodiment in 3D
+// Evaluates the full Axiom AxEMU Spacesuit embodiment in 3D with hierarchical bounding sphere culling
 SuitHit AstronautSuitSDF(vec3 p) {
-    // Fast bounding check: the suit only exists in the lower space below eye level
-    if (p.y > 0.08 || p.z < -0.15 || p.z > 1.30) {
+    // Fast bounding check: suit only exists below eye level and within frontal cone
+    if (p.y > 0.08 || p.z < -0.15 || p.z > 1.25) {
         return SuitHit(max(p.y - 0.06, 0.12), 0.0, p);
     }
 
     SuitHit res = SuitHit(1e5, 0.0, p);
 
-    // 1. Torso & Chest Unit (Positioned low and back: NO forward view obstruction)
-    vec3 torsoP = p - vec3(0.0, -0.48, 0.08);
-    float dChest = sdRoundBox(torsoP, vec3(0.18, 0.14, 0.08), 0.06);
-    float dCollar = sdTorus(p - vec3(0.0, -0.28, 0.10), vec2(0.12, 0.016));
-    float dShoulderL = sdSphere(p - vec3(-0.25, -0.32, 0.06), 0.08);
-    float dShoulderR = sdSphere(p - vec3(0.25, -0.32, 0.06), 0.08);
-    float dTorso = min(min(dChest, dCollar), min(dShoulderL, dShoulderR));
-    res = opUnion(res, SuitHit(dTorso, 1.0, p));
+    // 1. Torso & Upper Chest Unit (Hierarchical Bounding Sphere: center at (0, -0.45, 0.10))
+    float dTorsoBound = length(p - vec3(0.0, -0.45, 0.10));
+    if (dTorsoBound < 0.36) {
+        vec3 torsoP = p - vec3(0.0, -0.48, 0.08);
+        float dChest = sdRoundBox(torsoP, vec3(0.18, 0.14, 0.08), 0.06);
+        float dCollar = sdTorus(p - vec3(0.0, -0.28, 0.10), vec2(0.12, 0.016));
+        float dShoulderL = sdSphere(p - vec3(-0.25, -0.32, 0.06), 0.08);
+        float dShoulderR = sdSphere(p - vec3(0.25, -0.32, 0.06), 0.08);
+        float dTorso = min(min(dChest, dCollar), min(dShoulderL, dShoulderR));
+        res = opUnion(res, SuitHit(dTorso, 1.0, p));
 
-    // Axiom Red Accent Seam Stripe on Left Chest
-    vec3 redStripeP = p - vec3(0.065, -0.44, 0.162);
-    float dRedStripe = sdRoundBox(redStripeP, vec3(0.035, 0.008, 0.003), 0.001);
-    res = opUnion(res, SuitHit(dRedStripe, 2.0, p));
+        // Axiom Red Accent Seam Stripe
+        vec3 redStripeP = p - vec3(0.065, -0.44, 0.162);
+        float dRedStripe = sdRoundBox(redStripeP, vec3(0.035, 0.008, 0.003), 0.001);
+        res = opUnion(res, SuitHit(dRedStripe, 2.0, p));
 
-    // "AX" Axiom Decal on Right Chest
-    vec3 axP = p - vec3(-0.065, -0.44, 0.162);
-    float dAxDecal = sdRoundBox(axP, vec3(0.030, 0.016, 0.002), 0.001);
-    res = opUnion(res, SuitHit(dAxDecal, 7.0, axP));
+        // "AX" Axiom Decal
+        vec3 axP = p - vec3(-0.065, -0.44, 0.162);
+        float dAxDecal = sdRoundBox(axP, vec3(0.030, 0.016, 0.002), 0.001);
+        res = opUnion(res, SuitHit(dAxDecal, 7.0, axP));
 
-    // Central Aluminum Chest Control Module (DCM) with Switches
-    vec3 dcmP = p - vec3(0.0, -0.36, 0.170);
-    float dDCM = sdRoundBox(dcmP, vec3(0.055, 0.035, 0.012), 0.003);
-    res = opUnion(res, SuitHit(dDCM, 5.0, dcmP));
+        // Central Aluminum Chest Control Module (DCM)
+        vec3 dcmP = p - vec3(0.0, -0.36, 0.170);
+        float dDCM = sdRoundBox(dcmP, vec3(0.055, 0.035, 0.012), 0.003);
+        res = opUnion(res, SuitHit(dDCM, 5.0, dcmP));
 
-    // Gold Neck Ring Coupler
-    float dNeckRing = sdTorus(p - vec3(0.0, -0.26, 0.10), vec2(0.125, 0.007));
-    res = opUnion(res, SuitHit(dNeckRing, 5.0, p));
+        // Gold Neck Ring Coupler
+        float dNeckRing = sdTorus(p - vec3(0.0, -0.26, 0.10), vec2(0.125, 0.007));
+        res = opUnion(res, SuitHit(dNeckRing, 5.0, p));
+    } else {
+        res = opUnion(res, SuitHit(dTorsoBound - 0.28, 1.0, p));
+    }
 
     // 2. Forearm Sleeves with Charcoal Convolute Elbow Pleats & Red Racing Seams
     vec3 lWrist = u_jointsL[0];
@@ -456,58 +448,60 @@ SuitHit AstronautSuitSDF(vec3 p) {
     vec3 lElbow = vec3(-0.28, -0.34, 0.10);
     vec3 rElbow = vec3(0.28, -0.34, 0.10);
 
-    // Left Forearm Sleeve & Red Racing Stripe
+    // Left Forearm Sleeve
     float dSleeveL = sdTaperedCapsule(p, lElbow, lWrist, 0.032, 0.024);
     res = opUnion(res, SuitHit(dSleeveL, 1.0, p));
-
-    float dPleatL = sdRoundBox(p - mix(lElbow, lWrist, 0.35) + vec3(0.01, 0.0, -0.01), vec3(0.022, 0.038, 0.014), 0.004);
-    res = opUnion(res, SuitHit(dPleatL, 3.0, p));
-
     float dRedArmL = sdCapsule(p, lElbow + vec3(-0.022, 0.0, 0.0), lWrist + vec3(-0.018, 0.0, 0.0), 0.003);
     res = opUnion(res, SuitHit(dRedArmL, 2.0, p));
 
-    // Right Forearm Sleeve & Red Racing Stripe
+    // Right Forearm Sleeve
     float dSleeveR = sdTaperedCapsule(p, rElbow, rWrist, 0.032, 0.024);
     res = opUnion(res, SuitHit(dSleeveR, 1.0, p));
-
-    float dPleatR = sdRoundBox(p - mix(rElbow, rWrist, 0.35) + vec3(-0.01, 0.0, -0.01), vec3(0.022, 0.038, 0.014), 0.004);
-    res = opUnion(res, SuitHit(dPleatR, 3.0, p));
-
     float dRedArmR = sdCapsule(p, rElbow + vec3(0.022, 0.0, 0.0), rWrist + vec3(0.018, 0.0, 0.0), 0.003);
     res = opUnion(res, SuitHit(dRedArmR, 2.0, p));
 
-    // 3. 25-Joint Skinned AxEMU Gloves (Left & Right)
-    SuitHit handLHit = EvaluateSkinnedHand(p, u_jointsL, true);
-    res = opUnion(res, handLHit);
+    // 3. 25-Joint Skinned AxEMU Gloves (Hierarchical Bounding Sphere Culling)
+    // Left Hand: Only evaluate complex fingers if within 15cm of wrist!
+    float dWristL = length(p - lWrist);
+    if (dWristL < 0.15) {
+        SuitHit handLHit = EvaluateSkinnedHand(p, u_jointsL, true);
+        res = opUnion(res, handLHit);
+    } else {
+        res = opUnion(res, SuitHit(dWristL - 0.11, 1.0, p));
+    }
 
-    SuitHit handRHit = EvaluateSkinnedHand(p, u_jointsR, false);
-    res = opUnion(res, handRHit);
+    // Right Hand: Only evaluate complex fingers if within 15cm of wrist!
+    float dWristR = length(p - rWrist);
+    if (dWristR < 0.15) {
+        SuitHit handRHit = EvaluateSkinnedHand(p, u_jointsR, false);
+        res = opUnion(res, handRHit);
+    } else {
+        res = opUnion(res, SuitHit(dWristR - 0.11, 1.0, p));
+    }
 
-    // 4. Legs, Charcoal Knee Pleats & Ice-Blue Lunar Boots
-    vec3 lKnee = vec3(-0.12, -0.76, 0.12);
-    vec3 rKnee = vec3(0.12, -0.76, 0.12);
-    vec3 lFoot = vec3(-0.12, -1.05, 0.16);
-    vec3 rFoot = vec3(0.12, -1.05, 0.16);
+    // 4. Lower Body (Only evaluated if ray reaches down to legs: p.y < -0.50)
+    if (p.y < -0.50) {
+        vec3 lKnee = vec3(-0.12, -0.76, 0.12);
+        vec3 rKnee = vec3(0.12, -0.76, 0.12);
+        vec3 lFoot = vec3(-0.12, -1.05, 0.16);
+        vec3 rFoot = vec3(0.12, -1.05, 0.16);
 
-    // Thighs
-    float dThighL = sdTaperedCapsule(p, vec3(-0.11, -0.54, 0.08), lKnee, 0.046, 0.040);
-    float dThighR = sdTaperedCapsule(p, vec3(0.11, -0.54, 0.08), rKnee, 0.046, 0.040);
-    res = opUnion(res, SuitHit(min(dThighL, dThighR), 1.0, p));
+        float dThighL = sdTaperedCapsule(p, vec3(-0.11, -0.54, 0.08), lKnee, 0.046, 0.040);
+        float dThighR = sdTaperedCapsule(p, vec3(0.11, -0.54, 0.08), rKnee, 0.046, 0.040);
+        res = opUnion(res, SuitHit(min(dThighL, dThighR), 1.0, p));
 
-    // Charcoal Knee Accordion Convolute Pleat Pads
-    float dKneeL = sdRoundBox(p - lKnee, vec3(0.042, 0.038, 0.020), 0.005);
-    float dKneeR = sdRoundBox(p - rKnee, vec3(0.042, 0.038, 0.020), 0.005);
-    res = opUnion(res, SuitHit(min(dKneeL, dKneeR), 3.0, p));
+        float dKneeL = sdRoundBox(p - lKnee, vec3(0.042, 0.038, 0.020), 0.005);
+        float dKneeR = sdRoundBox(p - rKnee, vec3(0.042, 0.038, 0.020), 0.005);
+        res = opUnion(res, SuitHit(min(dKneeL, dKneeR), 3.0, p));
 
-    // Lower Shins
-    float dShinL = sdTaperedCapsule(p, lKnee, lFoot, 0.042, 0.046);
-    float dShinR = sdTaperedCapsule(p, rKnee, rFoot, 0.042, 0.046);
-    res = opUnion(res, SuitHit(min(dShinL, dShinR), 1.0, p));
+        float dShinL = sdTaperedCapsule(p, lKnee, lFoot, 0.042, 0.046);
+        float dShinR = sdTaperedCapsule(p, rKnee, rFoot, 0.042, 0.046);
+        res = opUnion(res, SuitHit(min(dShinL, dShinR), 1.0, p));
 
-    // Light Ice-Blue Boot Soles (Matching Reference Photo)
-    float dSoleL = sdRoundBox(p - (lFoot + vec3(0.0, -0.04, 0.02)), vec3(0.048, 0.015, 0.075), 0.005);
-    float dSoleR = sdRoundBox(p - (rFoot + vec3(0.0, -0.04, 0.02)), vec3(0.048, 0.015, 0.075), 0.005);
-    res = opUnion(res, SuitHit(min(dSoleL, dSoleR), 8.0, p));
+        float dSoleL = sdRoundBox(p - (lFoot + vec3(0.0, -0.04, 0.02)), vec3(0.048, 0.015, 0.075), 0.005);
+        float dSoleR = sdRoundBox(p - (rFoot + vec3(0.0, -0.04, 0.02)), vec3(0.048, 0.015, 0.075), 0.005);
+        res = opUnion(res, SuitHit(min(dSoleL, dSoleR), 8.0, p));
+    }
 
     return res;
 }
@@ -547,8 +541,8 @@ vec3 RenderSuitShading(SuitHit hit, vec3 rayDirLocal) {
     float specPower = 24.0;
     float specIntensity = 0.25;
 
-    // Fine Orthofabric Micro-Weave Pattern
-    float weave = SmoothNoise2D(p.xy * 140.0) * 0.035 + SmoothNoise2D(p.yz * 140.0) * 0.035;
+    // Fast Orthofabric Micro-Weave Pattern (No noise function calls!)
+    float weave = (sin(p.x * 240.0) * sin(p.y * 240.0)) * 0.025;
     baseCol -= weave;
 
     if (hit.matId > 1.5 && hit.matId < 2.5) {

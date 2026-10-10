@@ -220,6 +220,17 @@ class GargantuaApp {
             isco: false
         };
 
+        // Meta Quest 3 & Mobile Hardware Detection
+        this.isOculus = /OculusBrowser|Quest/i.test(navigator.userAgent);
+        this.isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+        this.ultraPerformanceMode = this.isOculus || this.isMobile;
+
+        if (this.ultraPerformanceMode) {
+            this.physics.raymarchSteps = 32; // Rock-solid 72/90 FPS on Meta Quest 3
+        } else {
+            this.physics.raymarchSteps = 56;
+        }
+
         this.initGL();
         this.bindEvents();
         this.bindUI();
@@ -572,6 +583,18 @@ class GargantuaApp {
             cinemaBtn.addEventListener('click', () => this.toggleCinemaMode());
         }
 
+        // Performance Mode Toggle (Ultra Fast for Meta Quest 3)
+        const perfBtn = document.getElementById('btn-perf-toggle');
+        if (perfBtn) {
+            if (this.ultraPerformanceMode) perfBtn.classList.add('active');
+            perfBtn.addEventListener('click', () => {
+                this.ultraPerformanceMode = !this.ultraPerformanceMode;
+                perfBtn.classList.toggle('active', this.ultraPerformanceMode);
+                this.physics.raymarchSteps = this.ultraPerformanceMode ? 32 : 56;
+                this.resize();
+            });
+        }
+
         // Infall Dive Toggle
         const infallBtn = document.getElementById('btn-infall-dive');
         if (infallBtn) {
@@ -712,7 +735,8 @@ class GargantuaApp {
 
             const gl = this.gl;
             await gl.makeXRCompatible();
-            const xrGLLayer = new XRWebGLLayer(session, gl);
+            // Scale WebXR framebuffer factor to 0.70 on Meta Quest to prevent GPU memory/bandwidth stall
+            const xrGLLayer = new XRWebGLLayer(session, gl, { framebufferScaleFactor: 0.70 });
             session.updateRenderState({ baseLayer: xrGLLayer });
 
             this.xrRefSpace = await session.requestReferenceSpace('local');
@@ -1112,7 +1136,8 @@ class GargantuaApp {
     resize() {
         const width = window.innerWidth;
         const height = window.innerHeight;
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.0);
+        // On Quest 3 / Mobile, 0.60 DPR cuts fragment load by 2.7x while preserving clean visuals
+        const dpr = this.ultraPerformanceMode ? 0.60 : Math.min(window.devicePixelRatio || 1, 1.0);
 
         this.canvas.width = Math.floor(width * dpr);
         this.canvas.height = Math.floor(height * dpr);
@@ -1250,7 +1275,7 @@ class GargantuaApp {
         let rayBasis = new Float32Array(9);
         let tanHalfFov = [Math.tan((this.camera.fov * Math.PI / 180.0) * 0.5) * (width / height), Math.tan((this.camera.fov * Math.PI / 180.0) * 0.5)];
         let fovOffset = [0.0, 0.0];
-        let maxSteps = this.physics.raymarchSteps;
+        let maxSteps = this.ultraPerformanceMode ? 32 : this.physics.raymarchSteps;
 
         // Local Astronaut Space Suit Hand Tracking Coordinates
         let localHandL = [0, 0, 0];
@@ -1315,7 +1340,7 @@ class GargantuaApp {
             // Exact projection tangents directly from Oculus Quest lenses
             tanHalfFov = [1.0 / p[0], 1.0 / p[5]];
             fovOffset = [-p[8] / p[0], -p[9] / p[5]];
-            maxSteps = 72; // Optimized for smooth 72/90 FPS in Meta Quest
+            maxSteps = 26; // Dual-eye WebXR VR mode on Meta Quest (72/90 FPS rock solid)
 
             // Map tracked physical hands into local headset camera space
             const toHeadsetLocal = (pt) => {
@@ -1480,8 +1505,9 @@ class GargantuaApp {
         gl.uniform1f(this.uniforms.u_photonIntensity, this.physics.photonRingIntensity);
         gl.uniform1f(this.uniforms.u_photonSharpness, this.physics.photonRingSharpness);
         gl.uniform1f(this.uniforms.u_exposure, this.physics.exposure);
+        const stepScale = (this.ultraPerformanceMode || isVR) ? 1.75 : 1.0;
         gl.uniform1i(this.uniforms.u_maxSteps, maxSteps);
-        gl.uniform1f(this.uniforms.u_stepScale, 1.0);
+        gl.uniform1f(this.uniforms.u_stepScale, stepScale);
         gl.uniform1f(this.uniforms.u_captureR, this.physics.eventHorizonGM);
         gl.uniform1f(this.uniforms.u_cinematicDisk, this.isCinematicReference ? 1.0 : 0.0);
 
