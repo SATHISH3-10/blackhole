@@ -2,6 +2,7 @@ import { KerrPhysics } from './physics.js';
 import { vertexShaderSource, fragmentShaderSource } from './shader.js';
 import { SpaceSoundSynthesizer } from './audio.js';
 import { SokolSuitViewer } from './suit-viewer.js';
+import { CockpitSuitLayer } from './cockpit-suit.js';
 
 // Canonical 25 WebXR Hand Tracking Joints
 export const XR_HAND_JOINTS = [
@@ -238,6 +239,11 @@ class GargantuaApp {
         }
 
         this.initGL();
+        try {
+            this.cockpitSuit = new CockpitSuitLayer('cockpit-canvas');
+        } catch (e) {
+            console.warn('Could not initialize CockpitSuitLayer:', e);
+        }
         this.bindEvents();
         this.bindUI();
         this.bindWebXR();
@@ -1685,6 +1691,23 @@ class GargantuaApp {
 
         // Draw Fullscreen Quad
         gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        // Update Authentic Franz Viehböck Sokol Space Suit Cockpit 3D Layer
+        if (this.cockpitSuit && !isVR) {
+            this.cockpitSuit.update({
+                active: showSuit,
+                fov: this.camera.fov,
+                pitch: this.camera.mode === 'pov' ? this.camera.povPitch : -0.22,
+                yaw: this.camera.mode === 'pov' ? this.camera.povYaw : 0.0,
+                isDragging: this.isDragging,
+                mouseNormX: this.mouseNormX,
+                mouseNormY: this.mouseNormY,
+                time: time,
+                isVR: false,
+                jointDataL: this.jointDataL,
+                jointDataR: this.jointDataR
+            });
+        }
     }
 }
 

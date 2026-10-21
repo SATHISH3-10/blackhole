@@ -643,30 +643,8 @@ void main() {
     vec3 rayDirLocal = normalize(vec3(rayTan.x, rayTan.y, 1.0));
     vec3 localRayOrigin = vec3(0.0, 0.0, 0.0);
     
-    float tSuit = 0.08;
-    SuitHit suitHitResult = SuitHit(1e5, 0.0, vec3(0.0));
+    // Procedural SDF suit is bypassed in favor of the authentic 3D Franz Viehböck Sokol-KV2 GLB mesh layer
     bool hitSuit = false;
-
-    // Early exit: suit & hands only raymarch when Cockpit View or VR mode is enabled and in lower frustum
-    if ((u_cockpitView > 0.5 || u_isVR > 0.5) && rayDirLocal.y < 0.16) {
-        for (int s = 0; s < 18; s++) {
-            vec3 pSuit = localRayOrigin + rayDirLocal * tSuit;
-            SuitHit h = AstronautSuitSDF(pSuit);
-            if (h.d < 0.005) {
-                suitHitResult = h;
-                suitHitResult.localPos = pSuit;
-                hitSuit = true;
-                break;
-            }
-            tSuit += max(h.d * 0.85, 0.010);
-            if (tSuit > 0.88) break;
-        }
-
-        if (hitSuit) {
-            col = RenderSuitShading(suitHitResult, rayDirLocal);
-            transmit = 0.0;
-        }
-    }
 
     // 2. Relativistic Kerr Geodesic Raymarch (Only for cosmic rays not blocked by astronaut suit)
     if (transmit > 0.0) {
