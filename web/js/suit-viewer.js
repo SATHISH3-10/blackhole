@@ -287,6 +287,7 @@ export class SokolSuitViewer {
             url,
             (gltf) => {
                 this.suitModel = gltf.scene;
+                this.restoreLegacyDiffuseTexture(gltf);
 
                 // Center and normalize bounding box
                 const box = new THREE.Box3().setFromObject(this.suitModel);
@@ -343,6 +344,27 @@ export class SokolSuitViewer {
                 }
             }
         );
+    }
+
+    restoreLegacyDiffuseTexture(gltf) {
+        const materials = gltf.parser?.json?.materials || [];
+        const legacy = materials[0]?.extensions?.KHR_materials_pbrSpecularGlossiness;
+        const textureIndex = legacy?.diffuseTexture?.index;
+        if (textureIndex === undefined) return;
+
+        gltf.parser.getDependency('texture', textureIndex).then(texture => {
+            texture.colorSpace = THREE.SRGBColorSpace;
+            this.suitModel.traverse(node => {
+                if (!node.isMesh || !node.material) return;
+                node.material.map = texture;
+                node.material.color.set(0xffffff);
+                node.material.needsUpdate = true;
+                if (legacy.glossinessFactor !== undefined) {
+                    node.material.roughness = 1.0 - legacy.glossinessFactor;
+                }
+                this.originalMaterials.set(node, node.material.clone());
+            });
+        }).catch(error => console.warn('Could not restore embedded Sokol texture:', error));
     }
 
     setRenderMode(mode) {
