@@ -648,8 +648,8 @@ void main() {
     bool hitSuit = false;
 
     // Early exit: suit & hands only raymarch when Cockpit View or VR mode is enabled and in lower frustum
-    if ((u_cockpitView > 0.5 || u_isVR > 0.5) && rayDirLocal.y < 0.10) {
-        for (int s = 0; s < 14; s++) {
+    if ((u_cockpitView > 0.5 || u_isVR > 0.5) && rayDirLocal.y < 0.16) {
+        for (int s = 0; s < 18; s++) {
             vec3 pSuit = localRayOrigin + rayDirLocal * tSuit;
             SuitHit h = AstronautSuitSDF(pSuit);
             if (h.d < 0.005) {
@@ -658,8 +658,8 @@ void main() {
                 hitSuit = true;
                 break;
             }
-            tSuit += max(h.d * 0.88, 0.008);
-            if (tSuit > 0.90) break;
+            tSuit += max(h.d * 0.85, 0.010);
+            if (tSuit > 0.88) break;
         }
 
         if (hitSuit) {
@@ -688,7 +688,7 @@ void main() {
             }
 
             // Smooth adaptive integration step size: efficient in distant space, ultra-fine near photon sphere
-            float dt = u_stepScale * clamp(0.035 * r * (1.0 + 0.055 * max(r - 6.0, 0.0)), 0.014, 3.8);
+            float dt = u_stepScale * clamp(0.050 * r * (1.0 + 0.080 * max(r - 4.0, 0.0)), 0.020, 4.5);
 
             // 2nd-Order Runge-Kutta (Midpoint) Symplectic Integration
             vec3 k1 = GetGeodesicAcc(pos, vel);

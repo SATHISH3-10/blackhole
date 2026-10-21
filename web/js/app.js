@@ -232,9 +232,9 @@ class GargantuaApp {
         this.ultraPerformanceMode = this.isOculus || this.isMobile;
 
         if (this.ultraPerformanceMode) {
-            this.physics.raymarchSteps = 32; // Rock-solid 72/90 FPS on Meta Quest 3 & Mobile!
+            this.physics.raymarchSteps = 48; // Rock-solid 72/90 FPS on Meta Quest 3 & Mobile!
         } else {
-            this.physics.raymarchSteps = 56; // Silky smooth 60 FPS on laptops with complete Einstein lensing halo!
+            this.physics.raymarchSteps = 80; // Complete upper & lower Einstein lensing halo at 60 FPS on laptop!
         }
 
         this.initGL();
@@ -584,6 +584,7 @@ class GargantuaApp {
                 btnOrbit.classList.remove('active');
                 this.camera.povYaw = 0.0;
                 this.camera.povPitch = 0.0;
+                this.toggleCockpitView(true);
             });
         }
 
@@ -1130,6 +1131,7 @@ class GargantuaApp {
                     btnPOV.classList.add('active');
                     btnOrbit.classList.remove('active');
                 }
+                this.toggleCockpitView(true);
                 break;
             case 'infall-dive':
                 this.startInfall();
@@ -1437,7 +1439,7 @@ class GargantuaApp {
         let rayBasis = new Float32Array(9);
         let tanHalfFov = [Math.tan((this.camera.fov * Math.PI / 180.0) * 0.5) * (width / height), Math.tan((this.camera.fov * Math.PI / 180.0) * 0.5)];
         let fovOffset = [0.0, 0.0];
-        let maxSteps = this.ultraPerformanceMode ? 32 : this.physics.raymarchSteps;
+        let maxSteps = isVR ? 48 : (this.ultraPerformanceMode ? 48 : this.physics.raymarchSteps);
 
         // Local Astronaut Space Suit Hand Tracking Coordinates
         let localHandL = [0, 0, 0];
@@ -1502,7 +1504,7 @@ class GargantuaApp {
             // Exact projection tangents directly from Oculus Quest lenses
             tanHalfFov = [1.0 / p[0], 1.0 / p[5]];
             fovOffset = [-p[8] / p[0], -p[9] / p[5]];
-            maxSteps = 32; // Dual-eye WebXR VR mode on Meta Quest with complete lensing halo (72/90 FPS)
+            maxSteps = 48; // Dual-eye WebXR VR mode on Meta Quest with complete lensing halo (72/90 FPS)
 
             // Map tracked physical hands into local headset camera space
             const toHeadsetLocal = (pt) => {
@@ -1667,7 +1669,7 @@ class GargantuaApp {
         gl.uniform1f(this.uniforms.u_photonIntensity, this.physics.photonRingIntensity);
         gl.uniform1f(this.uniforms.u_photonSharpness, this.physics.photonRingSharpness);
         gl.uniform1f(this.uniforms.u_exposure, this.physics.exposure);
-        const stepScale = (this.ultraPerformanceMode || isVR) ? 1.85 : 1.15;
+        const stepScale = (this.ultraPerformanceMode || isVR) ? 1.45 : 1.0;
         gl.uniform1i(this.uniforms.u_maxSteps, maxSteps);
         gl.uniform1f(this.uniforms.u_stepScale, stepScale);
         gl.uniform1f(this.uniforms.u_captureR, this.physics.eventHorizonGM);
@@ -1678,7 +1680,8 @@ class GargantuaApp {
         gl.uniform1f(this.uniforms.u_showISCO, this.overlays.isco ? 1.0 : 0.0);
         gl.uniform1f(this.uniforms.u_helmetVisor, this.helmetVisor ? 1.0 : 0.0);
         gl.uniform1f(this.uniforms.u_suitStyle, this.suitStyle === 'sokol' ? 1.0 : 0.0);
-        gl.uniform1f(this.uniforms.u_cockpitView, this.cockpitView ? 1.0 : 0.0);
+        const showSuit = this.cockpitView || this.camera.mode === 'pov' || isVR;
+        gl.uniform1f(this.uniforms.u_cockpitView, showSuit ? 1.0 : 0.0);
 
         // Draw Fullscreen Quad
         gl.drawArrays(gl.TRIANGLES, 0, 6);
