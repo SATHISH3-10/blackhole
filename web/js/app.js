@@ -188,6 +188,7 @@ class GargantuaApp {
         // WebXR & Gyroscope State
         this.xrSession = null;
         this.xrRefSpace = null;
+        this.xrFrame = null;
         this.isVR = false;
         this.gyroEnabled = false;
         this.gyroMatrix = new Float32Array([1,0,0, 0,1,0, 0,0,1]);
@@ -241,6 +242,12 @@ class GargantuaApp {
         this.initGL();
         try {
             this.cockpitSuit = new CockpitSuitLayer('cockpit-canvas');
+            this.cockpitSuit.onXRAction = (action) => {
+                if (action === 'exit' && this.xrSession) this.xrSession.end();
+                else if (action === 'cinema') document.querySelector('.preset-btn[data-preset="movie-ref"]')?.click();
+                else if (action === 'suit') document.querySelector('.preset-btn[data-preset="suit-inspect"]')?.click();
+                else if (action === 'plunge') document.querySelector('.preset-btn[data-preset="infall-dive"]')?.click();
+            };
         } catch (e) {
             console.warn('Could not initialize CockpitSuitLayer:', e);
         }
@@ -333,6 +340,7 @@ class GargantuaApp {
             u_suitStyle: gl.getUniformLocation(this.program, 'u_suitStyle'),
             u_cockpitView: gl.getUniformLocation(this.program, 'u_cockpitView'),
             u_renderSuitBody: gl.getUniformLocation(this.program, 'u_renderSuitBody'),
+            u_renderProceduralHands: gl.getUniformLocation(this.program, 'u_renderProceduralHands'),
 
             // Universal 360° Desktop & WebXR Stereoscopic Ray System
             u_viewport: gl.getUniformLocation(this.program, 'u_viewport'),
@@ -913,6 +921,26 @@ class GargantuaApp {
         }
 
         try {
+            // Entering immersive XR always means first-person embodiment.
+            // Do not carry the desktop Orbit Cam state into the headset.
+            this.camera.mode = 'pov';
+            this.cockpitView = true;
+            this.autoOrbit = false;
+            const orbitModeBtn = document.getElementById('btn-mode-orbit');
+            const povModeBtn = document.getElementById('btn-mode-pov');
+            if (orbitModeBtn) orbitModeBtn.classList.remove('active');
+            if (povModeBtn) povModeBtn.classList.add('active');
+            const cockpitBtn = document.getElementById('btn-cockpit-toggle');
+            if (cockpitBtn) {
+                cockpitBtn.textContent = '🚀 Cockpit: ON';
+                cockpitBtn.classList.add('active');
+            }
+            const autoOrbitBtn = document.getElementById('btn-auto-orbit');
+            if (autoOrbitBtn) {
+                autoOrbitBtn.textContent = '🔄 Orbit: Manual';
+                autoOrbitBtn.classList.remove('active');
+            }
+
             // Enable Meta Quest Optical Hand Tracking & Bounded Floor
             const session = await navigator.xr.requestSession('immersive-vr', {
                 optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
@@ -938,6 +966,7 @@ class GargantuaApp {
 
             const onXRFrame = (time, frame) => {
                 if (!this.xrSession) return;
+                this.xrFrame = frame;
                 const pose = frame.getViewerPose(this.xrRefSpace);
                 if (pose) {
                     const glLayer = this.xrSession.renderState.baseLayer;
@@ -1547,7 +1576,7 @@ class GargantuaApp {
 
             // Process 25-Joint WebXR Hand Tracking if available
             let webxrHandFound = false;
-            if (xrFrame && this.xrSession && this.xrRefSpace) {
+            if (this.xrFrame && this.xrSession && this.xrRefSpace) {
                 for (const inputSource of this.xrSession.inputSources) {
                     if (inputSource.hand) {
                         webxrHandFound = true;
@@ -1558,7 +1587,7 @@ class GargantuaApp {
                             const jointName = XR_HAND_JOINTS[j];
                             const joint = inputSource.hand.get(jointName);
                             if (joint) {
-                                const pose = xrFrame.getJointPose(joint, this.xrRefSpace);
+                                const pose = this.xrFrame.getJointPose(joint, this.xrRefSpace);
                                 if (pose) {
                                     const pos = pose.transform.position;
                                     const loc = toHeadsetLocal([pos.x, pos.y, pos.z]);
@@ -1737,13 +1766,18 @@ class GargantuaApp {
         gl.uniform1f(this.uniforms.u_suitStyle, this.suitStyle === 'sokol' ? 1.0 : 0.0);
         const showSuit = this.camera.mode === 'pov' || isVR;
         gl.uniform1f(this.uniforms.u_cockpitView, showSuit ? 1.0 : 0.0);
-        gl.uniform1f(this.uniforms.u_renderSuitBody, isVR ? 0.0 : 1.0);
+        // Keep the procedural avatar visible only during the GLB loading window.
+        // Once the animated suit is ready, the raymarcher yields body/hands to the
+        // textured skinned avatar rendered in the XR framebuffer (no duplicates).
+        const riggedSuitReady = Boolean(this.cockpitSuit && this.cockpitSuit.isLoaded);
+        gl.uniform1f(this.uniforms.u_renderSuitBody, !isVR || !riggedSuitReady ? 1.0 : 0.0);
+        gl.uniform1f(this.uniforms.u_renderProceduralHands, isVR && !riggedSuitReady ? 1.0 : 0.0);
 
         // Draw Fullscreen Quad
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
         if (this.cockpitSuit && isVR && xrView) {
-            this.cockpitSuit.renderXR(gl, this.canvas, xrView, xrViewport, showSuit, time);
+            this.cockpitSuit.renderXR(gl, this.canvas, xrView, xrViewport, showSuit, time, this.jointDataL, this.jointDataR);
         }
 
         // Update Authentic Franz Viehböck Sokol Space Suit Cockpit 3D Layer

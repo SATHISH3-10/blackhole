@@ -121,7 +121,7 @@ export class SokolSuitViewer {
         this.animate();
 
         // Load 3D Franz Viehböck Sokol Space Suit Model
-        this.loadModel('./assets/franz_viehbocks_sokol_space_suit.glb');
+        this.loadModel('./assets/animated_floating_astronaut_in_space_suit_loop.glb');
     }
 
     createSpecialMaterials() {
@@ -288,6 +288,10 @@ export class SokolSuitViewer {
             (gltf) => {
                 this.suitModel = gltf.scene;
                 this.restoreLegacyDiffuseTexture(gltf);
+                if (gltf.animations && gltf.animations.length) {
+                    this.mixer = new THREE.AnimationMixer(this.suitModel);
+                    this.mixer.clipAction(gltf.animations[0]).play();
+                }
 
                 // Center and normalize bounding box
                 const box = new THREE.Box3().setFromObject(this.suitModel);
@@ -348,23 +352,26 @@ export class SokolSuitViewer {
 
     restoreLegacyDiffuseTexture(gltf) {
         const materials = gltf.parser?.json?.materials || [];
-        const legacy = materials[0]?.extensions?.KHR_materials_pbrSpecularGlossiness;
-        const textureIndex = legacy?.diffuseTexture?.index;
-        if (textureIndex === undefined) return;
-
-        gltf.parser.getDependency('texture', textureIndex).then(texture => {
-            texture.colorSpace = THREE.SRGBColorSpace;
-            this.suitModel.traverse(node => {
-                if (!node.isMesh || !node.material) return;
-                node.material.map = texture;
-                node.material.color.set(0xffffff);
-                node.material.needsUpdate = true;
-                if (legacy.glossinessFactor !== undefined) {
-                    node.material.roughness = 1.0 - legacy.glossinessFactor;
-                }
-                this.originalMaterials.set(node, node.material.clone());
-            });
-        }).catch(error => console.warn('Could not restore embedded Sokol texture:', error));
+        materials.forEach((definition, materialIndex) => {
+            const legacy = definition?.extensions?.KHR_materials_pbrSpecularGlossiness;
+            const textureIndex = legacy?.diffuseTexture?.index;
+            if (textureIndex === undefined) return;
+            gltf.parser.getDependency('texture', textureIndex).then(texture => {
+                texture.colorSpace = THREE.SRGBColorSpace;
+                this.suitModel.traverse(node => {
+                    if (!node.isMesh || !node.material) return;
+                    const materialName = node.material.name || '';
+                    if (materialName && materialName !== `material_${materialIndex}`) return;
+                    node.material.map = texture;
+                    node.material.color.set(0xffffff);
+                    node.material.needsUpdate = true;
+                    if (legacy.glossinessFactor !== undefined) {
+                        node.material.roughness = 1.0 - legacy.glossinessFactor;
+                    }
+                    this.originalMaterials.set(node, node.material.clone());
+                });
+            }).catch(error => console.warn(`Could not restore embedded suit texture ${materialIndex}:`, error));
+        });
     }
 
     setRenderMode(mode) {
@@ -467,6 +474,7 @@ export class SokolSuitViewer {
     animate() {
         this.animFrameId = requestAnimationFrame(this.animate);
         const time = performance.now();
+        if (this.mixer) this.mixer.update(1 / 60);
 
         // Smooth camera transition to hotspot target
         if (this.targetCamPos && this.targetLookAt) {

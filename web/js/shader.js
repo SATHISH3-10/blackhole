@@ -83,6 +83,7 @@ uniform float u_helmetVisor;
 uniform float u_suitStyle; // 0.0: Axiom AxEMU, 1.0: Franz Viehböck Sokol-KV2
 uniform float u_cockpitView; // 0.0: standard, 1.0: seated cockpit astronaut body
 uniform float u_renderSuitBody; // 0.0 when the real Sokol GLB is rendered in XR
+uniform float u_renderProceduralHands; // fallback only while a rigged GLB is unavailable
 
 #define MAX_STEPS 200
 
@@ -650,8 +651,28 @@ void main() {
     vec3 rayDirLocal = normalize(vec3(rayTan.x, rayTan.y, 1.0));
     vec3 localRayOrigin = vec3(0.0, 0.0, 0.0);
     
-    // Procedural SDF suit is bypassed in favor of the authentic 3D Franz Viehböck Sokol-KV2 GLB mesh layer
+    // The GLB supplies the torso/helmet. The tracked gloves are rendered here
+    // because their 25 joints change every XR frame.
     bool hitSuit = false;
+    if (u_isVR > 0.5 && u_renderProceduralHands > 0.5) {
+        float handT = 0.015;
+        SuitHit closestHand = SuitHit(1e5, 0.0, vec3(0.0));
+        for (int h = 0; h < 96; h++) {
+            vec3 handP = localRayOrigin + rayDirLocal * handT;
+            SuitHit handHit = AstronautSuitSDF(handP);
+            if (handHit.d < 0.0015) {
+                closestHand = handHit;
+                hitSuit = true;
+                break;
+            }
+            handT += clamp(handHit.d * 0.72, 0.003, 0.025);
+            if (handT > 1.25) break;
+        }
+        if (hitSuit) {
+            col = RenderSuitShading(closestHand, rayDirLocal);
+            transmit = 0.0;
+        }
+    }
 
     // 2. Relativistic Kerr Geodesic Raymarch (Only for cosmic rays not blocked by astronaut suit)
     if (transmit > 0.0) {

@@ -16,11 +16,11 @@
 
     <!-- Floating Quick Access Controls (Always visible in Cinema Mode) -->
     <div class="floating-quick-bar interactive">
-        <button class="btn quick-btn suit-btn" id="btn-suit-modal" title="Open Franz Viehböck's Sokol Space Suit 3D Inspector">🧑‍🚀 Sokol Suit 3D</button>
+        <button class="btn quick-btn suit-btn" id="btn-suit-modal" title="Open the Animated Floating Astronaut 3D Inspector">🧑‍🚀 Astronaut Suit 3D</button>
         <button class="btn quick-btn cockpit-btn" id="btn-cockpit-toggle" title="Toggle Astronaut Cockpit Seated View (Press C)">🚀 Cockpit: OFF</button>
         <button class="btn quick-btn infall-btn" id="btn-infall-dive" title="Start the full 360° plunge into the black hole (Press F)">🚀 Begin Horizon Plunge</button>
         <button class="btn quick-btn" id="btn-cinema-toggle" title="Toggle Cinema Mode (Press H)">👁️ Cinema View</button>
-        <button class="btn quick-btn vr-btn" id="btn-webxr-vr" title="Enter WebXR: right-hand pinch steers; pinch both hands and move apart/together to change distance.">🥽 WebXR VR & Hand Tracking</button>
+        <button class="btn quick-btn vr-btn" id="btn-webxr-vr" title="Enter immersive VR with head and optical hand tracking.">🥽 Enter VR</button>
         <button class="btn quick-btn" id="btn-perf-toggle" title="Toggle Ultra-Fast Mode for Meta Quest 3 & Mobile">⚡ 90 FPS Mode</button>
         <button class="btn quick-btn ar-btn" id="btn-gyro-ar" title="Toggle 360° Mobile Gyro">📱 360° Gyro</button>
     </div>
@@ -63,14 +63,14 @@
                 <div class="control-group">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
                         <button class="btn active" id="btn-mode-orbit">🛰️ Orbit Cam</button>
-                        <button class="btn" id="btn-mode-pov">🧑‍🚀 360° POV</button>
+                        <button class="btn" id="btn-mode-pov" title="First-person helmet view: look around with mouse drag and look down to see the suit">🪖 Helmet View</button>
                     </div>
                 </div>
                 <div style="display: flex; gap: 6px; margin-bottom: 8px;">
-                    <button class="btn active" id="btn-suit-sokol" style="flex: 1;" title="Franz Viehböck Sokol-KV2 Austrian Cosmonaut Suit">🇦🇹 Sokol-KV2</button>
+                    <button class="btn active" id="btn-suit-sokol" style="flex: 1;" title="Animated Floating Astronaut suit">🧑‍🚀 Animated Suit</button>
                     <button class="btn" id="btn-suit-axiom" style="flex: 1;" title="Axiom AxEMU Lunar Extravehicular Suit">🌙 AxEMU</button>
                 </div>
-                <button class="btn" id="btn-open-suit-sidebar" style="width: 100%; margin-bottom: 8px; border-color: var(--accent-gold); color: #fff;">🧑‍🚀 Open Sokol Suit 3D Inspector</button>
+                <button class="btn" id="btn-open-suit-sidebar" style="width: 100%; margin-bottom: 8px; border-color: var(--accent-gold); color: #fff;">🧑‍🚀 Open Animated Suit Inspector</button>
                 <div class="toggle-row">
                     <span>Astronaut Visor HUD</span>
                     <label class="toggle-switch">
@@ -297,9 +297,9 @@
         <div class="modal-content glass-panel">
             <div class="modal-header">
                 <div>
-                    <h2>SOKOL-KV2 SPACESUIT INSPECTOR</h2>
+                    <h2>ANIMATED ASTRONAUT SUIT INSPECTOR</h2>
                     <p style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
-                        Authentic 3D Photogrammetry Scan of Austrian Cosmonaut Franz Viehböck's Suit (AustroMir-91, NHM Wien)
+                        Animated Floating Astronaut in Space Suit Loop
                     </p>
                 </div>
                 <button class="modal-close-btn" id="suit-modal-close" title="Close Inspector (Esc)">&times;</button>
