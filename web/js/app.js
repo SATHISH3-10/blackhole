@@ -733,11 +733,58 @@ class GargantuaApp {
                 });
             }
         };
-        bindCalibSlider('slider-calib-dist', 'distance');
+        // Distance Slider handles both POV eye distance and Outer Space floating distance
+        const distSliderEl = document.getElementById('slider-calib-dist');
+        if (distSliderEl) {
+            distSliderEl.addEventListener('input', (e) => {
+                if (this.cockpitSuit) {
+                    if (this.camera.mode === 'pov') {
+                        this.cockpitSuit.setCalibrationParam('distance', e.target.value);
+                    } else {
+                        this.cockpitSuit.setCalibrationParam('extDist', e.target.value);
+                    }
+                    this.syncSuitCalibrationUI();
+                }
+            });
+        }
+        // Scale Slider handles both POV suit scale and Outer Space suit scale
+        const scaleSliderEl = document.getElementById('slider-calib-scale');
+        if (scaleSliderEl) {
+            scaleSliderEl.addEventListener('input', (e) => {
+                if (this.cockpitSuit) {
+                    if (this.camera.mode === 'pov') {
+                        this.cockpitSuit.setCalibrationParam('scale', e.target.value);
+                    } else {
+                        this.cockpitSuit.setCalibrationParam('extScale', e.target.value);
+                    }
+                    this.syncSuitCalibrationUI();
+                }
+            });
+        }
         bindCalibSlider('slider-calib-height', 'height');
         bindCalibSlider('slider-calib-lateral', 'lateral');
-        bindCalibSlider('slider-calib-scale', 'scale');
         bindCalibSlider('slider-calib-recline', 'recline');
+
+        // Mode Tabs: Outer Space EVA vs Helmet Cockpit
+        const tabSpace = document.getElementById('tab-calib-space');
+        const tabPOV = document.getElementById('tab-calib-pov');
+        if (tabSpace) {
+            tabSpace.addEventListener('click', () => {
+                this.camera.mode = 'orbit';
+                this.autoOrbit = false;
+                tabSpace.classList.add('active');
+                if (tabPOV) tabPOV.classList.remove('active');
+                this.syncSuitCalibrationUI();
+            });
+        }
+        if (tabPOV) {
+            tabPOV.addEventListener('click', () => {
+                this.camera.mode = 'pov';
+                tabPOV.classList.add('active');
+                if (tabSpace) tabSpace.classList.remove('active');
+                this.syncSuitCalibrationUI();
+            });
+        }
 
         // Presets Buttons
         document.querySelectorAll('.calib-preset-btn').forEach(btn => {
@@ -948,10 +995,34 @@ class GargantuaApp {
         const isPOV = this.camera.mode === 'pov';
         const liveDist = this.cockpitSuit.getLiveDistance(isPOV);
 
+        const cardLabel = document.querySelector('.calibrate-distance-card .card-label');
+        if (cardLabel) {
+            cardLabel.textContent = isPOV ? 'CURRENT EYE-TO-SUIT DISTANCE' : 'ASTRONAUT DISTANCE IN OUTER SPACE';
+        }
+
+        const tabSpace = document.getElementById('tab-calib-space');
+        const tabPOV = document.getElementById('tab-calib-pov');
+        if (tabSpace) tabSpace.classList.toggle('active', !isPOV);
+        if (tabPOV) tabPOV.classList.toggle('active', isPOV);
+
         const distSlider = document.getElementById('slider-calib-dist');
         const distVal = document.getElementById('val-calib-dist');
-        if (distSlider) distSlider.value = cal.distance.toFixed(2);
-        if (distVal) distVal.textContent = cal.distance.toFixed(2) + ' m';
+        if (distSlider) {
+            if (isPOV) {
+                distSlider.min = '0.40';
+                distSlider.max = '3.00';
+                distSlider.step = '0.02';
+                distSlider.value = cal.distance.toFixed(2);
+            } else {
+                distSlider.min = '1.20';
+                distSlider.max = '6.00';
+                distSlider.step = '0.05';
+                distSlider.value = (cal.extDist || 2.50).toFixed(2);
+            }
+        }
+        if (distVal) {
+            distVal.textContent = (isPOV ? cal.distance : (cal.extDist || 2.50)).toFixed(2) + ' m';
+        }
 
         const heightSlider = document.getElementById('slider-calib-height');
         const heightVal = document.getElementById('val-calib-height');
@@ -965,8 +1036,9 @@ class GargantuaApp {
 
         const scaleSlider = document.getElementById('slider-calib-scale');
         const scaleVal = document.getElementById('val-calib-scale');
-        if (scaleSlider) scaleSlider.value = cal.scale.toFixed(2);
-        if (scaleVal) scaleVal.textContent = Math.round(cal.scale / 0.42 * 100) + '%';
+        const currentScale = isPOV ? cal.scale : (cal.extScale || 0.85);
+        if (scaleSlider) scaleSlider.value = currentScale.toFixed(2);
+        if (scaleVal) scaleVal.textContent = Math.round(currentScale / (isPOV ? 0.42 : 0.85) * 100) + '%';
 
         const reclineSlider = document.getElementById('slider-calib-recline');
         const reclineVal = document.getElementById('val-calib-recline');
@@ -981,7 +1053,9 @@ class GargantuaApp {
 
         const readoutBar = document.getElementById('calib-readout-bar');
         if (readoutBar) {
-            const pct = Math.min(100, Math.max(8, ((liveDist - 0.4) / (3.0 - 0.4)) * 100));
+            const minD = isPOV ? 0.4 : 1.2;
+            const maxD = isPOV ? 3.0 : 6.0;
+            const pct = Math.min(100, Math.max(8, ((liveDist - minD) / (maxD - minD)) * 100));
             readoutBar.style.width = pct + '%';
         }
     }
@@ -1920,8 +1994,12 @@ class GargantuaApp {
         gl.uniform1f(this.uniforms.u_showISCO, this.overlays.isco ? 1.0 : 0.0);
         gl.uniform1f(this.uniforms.u_helmetVisor, this.helmetVisor ? 1.0 : 0.0);
         gl.uniform1f(this.uniforms.u_suitStyle, this.suitStyle === 'sokol' ? 1.0 : 0.0);
-        const showSuit = this.camera.mode === 'pov' || isVR;
-        gl.uniform1f(this.uniforms.u_cockpitView, showSuit ? 1.0 : 0.0);
+        const calibPanel = document.getElementById('suit-calibrate-panel');
+        const isCalibOpen = Boolean(calibPanel && calibPanel.classList.contains('open'));
+        // The space suit is fully rendered in outer space whenever Calibration Studio is open,
+        // or in POV mode, VR, Cockpit view, or when Animated Suit is active!
+        const showSuit = this.camera.mode === 'pov' || isVR || this.cockpitView || isCalibOpen || this.suitStyle === 'sokol';
+        gl.uniform1f(this.uniforms.u_cockpitView, (this.camera.mode === 'pov' || isVR) ? 1.0 : 0.0);
         // Keep the procedural avatar visible only during the GLB loading window.
         // Once the animated suit is ready, the raymarcher yields body/hands to the
         // textured skinned avatar rendered in the XR framebuffer (no duplicates).

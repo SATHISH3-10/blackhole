@@ -85,11 +85,18 @@
         </div>
 
         <!-- Quick Presets -->
+        <!-- Mode Tabs: Outer Space EVA vs Helmet Cockpit -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 2px;">
+            <button class="calib-mode-tab active" id="tab-calib-space" title="Calibrate the astronaut floating in outer space">🛰️ Outer Space EVA</button>
+            <button class="calib-mode-tab" id="tab-calib-pov" title="Calibrate the first-person helmet cockpit fit">🪖 Helmet Cockpit</button>
+        </div>
+
+        <!-- Quick Presets -->
         <div class="calib-presets">
+            <button class="calib-preset-btn active" data-preset="space-eva">🛸 Space EVA (2.5m)</button>
+            <button class="calib-preset-btn" data-preset="space-close">🔍 Close EVA (1.7m)</button>
+            <button class="calib-preset-btn" data-preset="cockpit">🚀 Cockpit (1.27m)</button>
             <button class="calib-preset-btn" data-preset="visor">🪖 Visor (0.85m)</button>
-            <button class="calib-preset-btn active" data-preset="cockpit">🚀 Standard (1.27m)</button>
-            <button class="calib-preset-btn" data-preset="deep">🛸 Deep (1.95m)</button>
-            <button class="calib-preset-btn" data-preset="shoulder">👁️ Shoulder</button>
         </div>
 
         <!-- Actions -->

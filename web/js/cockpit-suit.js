@@ -46,12 +46,14 @@ export class CockpitSuitLayer {
 
         // Interactive Calibration & Fit State (Live Instant Updates)
         this.defaultCalibration = {
-            distance: 1.27,  // target distance in meters (0.4m to 3.0m)
-            height: -1.04,   // Y position (-1.8m to -0.3m)
-            lateral: 0.0,    // X position (-0.5m to +0.5m)
-            scale: 0.42,     // Scale multiplier (0.2x to 1.0x)
-            recline: 0.0,    // Pitch angle (-35° to +35°)
-            extDist: 1.80    // External view distance
+            distance: 1.27,  // First-person eye-to-suit distance in meters
+            height: -1.04,   // Y position
+            lateral: 0.0,    // X position
+            scale: 0.42,     // Scale multiplier (first person)
+            recline: 0.0,    // Pitch angle
+            extDist: 2.50,   // Space EVA distance: perfectly framed at 2.50m
+            extScale: 0.85,  // Space EVA scale: fits 100% inside outer space
+            extHeight: -0.10 // Space EVA height: vertically centered
         };
         this.calibration = { ...this.defaultCalibration };
         this.loadSavedCalibration();
@@ -99,7 +101,19 @@ export class CockpitSuitLayer {
     }
 
     applyCalibrationPreset(presetName) {
-        if (presetName === 'visor') {
+        if (presetName === 'space-eva') {
+            this.calibration.extDist = 2.50;
+            this.calibration.extScale = 0.85;
+            this.calibration.extHeight = -0.10;
+            this.calibration.lateral = 0.25;
+            this.calibration.recline = 0.0;
+        } else if (presetName === 'space-close') {
+            this.calibration.extDist = 1.70;
+            this.calibration.extScale = 0.75;
+            this.calibration.extHeight = -0.05;
+            this.calibration.lateral = 0.15;
+            this.calibration.recline = -5.0;
+        } else if (presetName === 'visor') {
             this.calibration.distance = 0.85;
             this.calibration.height = -1.04;
             this.calibration.lateral = 0.0;
@@ -132,13 +146,14 @@ export class CockpitSuitLayer {
         const camY = 0.22;
         const targetDist = Math.max(0.35, this.calibration.distance);
         
-        // Base line of sight vector from eyes (0, 0.22, 0) to standard chest/lap (0, -1.04, 0.16)
-        // delta = (0, -1.26, 0.16), length = 1.270157
-        const normY = -1.26 / 1.270157; // ~ -0.9920
-        const normZ = 0.16 / 1.270157;  // ~ 0.1260
+        // Direction vector from eye (0, 0.22, 0) downwards towards chest/lap:
+        // dy = -0.90, dz = -0.42 (so the chest and arms are in front of the viewer, fully inside view!)
+        const len = Math.hypot(-0.90, -0.42);
+        const normY = -0.90 / len; // ~ -0.906
+        const normZ = -0.42 / len; // ~ -0.423
         
         const heightShift = this.calibration.height - (-1.04);
-        const y = camY + (normY * targetDist) + heightShift + breath;
+        const y = camY + (normY * targetDist) + heightShift * 0.4 + breath;
         const z = normZ * targetDist;
         const x = this.calibration.lateral;
 
@@ -162,7 +177,7 @@ export class CockpitSuitLayer {
             const dz = t.z;
             return Math.sqrt(dx * dx + dy * dy + dz * dz);
         } else {
-            return this.calibration.extDist;
+            return this.calibration.extDist || 2.50;
         }
     }
 
@@ -177,8 +192,11 @@ export class CockpitSuitLayer {
             this.saveCalibration();
             return this.getLiveDistance(true);
         } else {
-            const distDelta = -deltaY * 0.012;
-            this.calibration.extDist = Math.max(0.80, Math.min(5.00, this.calibration.extDist + distDelta));
+            // In space EVA mode: dragging adjusts floating distance in space and position
+            const distDelta = -deltaY * 0.015;
+            this.calibration.extDist = Math.max(1.20, Math.min(6.00, (this.calibration.extDist || 2.50) + distDelta));
+            const xDelta = deltaX * 0.006;
+            this.calibration.lateral = Math.max(-1.50, Math.min(1.50, (this.calibration.lateral || 0.25) + xDelta));
             this.saveCalibration();
             return this.calibration.extDist;
         }
@@ -199,14 +217,20 @@ export class CockpitSuitLayer {
             this.pipRenderer.setClearColor(0x060a14, 1.0);
             this.pipRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-            this.pipCamera = new THREE.PerspectiveCamera(40, w / h, 0.1, 20);
-            this.pipCamera.position.set(1.4, 0.35, 1.8);
-            this.pipCamera.lookAt(0, -0.35, 0);
+            // FOV 48 with camera distance 3.0m ensures 100% of the astronaut suit
+            // (helmet, backpack, gloves, boots) is fully inside the surveillance space!
+            this.pipCamera = new THREE.PerspectiveCamera(48, w / h, 0.1, 25);
+            this.pipCamera.position.set(1.8, 0.35, 2.4);
+            this.pipCamera.lookAt(0, -0.15, 0);
         }
 
         // Keep surveillance camera looking at suit location in the live scene
-        const t = this.getSuitTransform(time);
-        this.pipCamera.lookAt(t.x, t.y * 0.45, t.z * 0.5);
+        if (this.cameraMode === 'pov') {
+            const t = this.getSuitTransform(time);
+            this.pipCamera.lookAt(t.x, t.y * 0.45, t.z * 0.5);
+        } else {
+            this.pipCamera.lookAt(this.suitBodyGroup.position.x, this.suitBodyGroup.position.y, this.suitBodyGroup.position.z);
+        }
 
         this.pipRenderer.render(this.scene, this.pipCamera);
     }
@@ -669,16 +693,23 @@ export class CockpitSuitLayer {
             this.suitBodyGroup.position.set(t.x, t.y, t.z);
             this.suitBodyGroup.rotation.set(t.pitch, t.yaw, 0.0);
         } else {
-            // External EVA Cosmonaut View (floating against Gargantua in Orbit Cam):
-            // Camera looks forward at (0, 0, 0)
+            // External EVA Space View (Astronaut floating majestically in outer space in front of Gargantua):
             this.camera.position.set(0.0, 0.0, 0.0);
             this.camera.rotation.set(0, 0, 0);
 
-            // Floating gracefully in front of the camera at calibrated external distance:
-            this.suitBodyGroup.scale.copy(this.baseSuitScale);
-            this.suitBodyGroup.position.set(0.35 + mouseNormX * 0.08, -0.22 + floatWave, -this.calibration.extDist);
+            // Floating fully inside the space scene at calibrated external distance and scale:
+            const extDist = Math.max(1.2, this.calibration.extDist || 2.50);
+            const extScale = this.calibration.extScale || 0.85;
+            this.suitBodyGroup.scale.copy(this.baseSuitScale).multiplyScalar(extScale);
+
+            const posX = (this.calibration.lateral || 0.25) + mouseNormX * 0.08;
+            const posY = (this.calibration.extHeight !== undefined ? this.calibration.extHeight : -0.10) + floatWave;
+            const posZ = -extDist;
+            this.suitBodyGroup.position.set(posX, posY, posZ);
+
             const tumble = Math.sin(time * 0.0008) * 0.12;
-            this.suitBodyGroup.rotation.set(0.15 + tumble * 0.5, 0.35 + tumble, tumble * 0.3);
+            const reclineRad = (this.calibration.recline || 0.0) * Math.PI / 180.0;
+            this.suitBodyGroup.rotation.set(0.15 + tumble * 0.5 + reclineRad, 0.35 + tumble, tumble * 0.3);
         }
 
         // Render Frame
