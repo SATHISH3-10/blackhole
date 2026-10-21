@@ -14,6 +14,8 @@
 
     <!-- Floating Quick Access Controls (Always visible in Cinema Mode) -->
     <div class="floating-quick-bar interactive">
+        <button class="btn quick-btn suit-btn" id="btn-suit-modal" title="Open Franz Viehböck's Sokol Space Suit 3D Inspector">🧑‍🚀 Sokol Suit 3D</button>
+        <button class="btn quick-btn cockpit-btn" id="btn-cockpit-toggle" title="Toggle Astronaut Cockpit Seated View (Press C)">🚀 Cockpit: ON</button>
         <button class="btn quick-btn infall-btn" id="btn-infall-dive" title="Start the full 360° plunge into the black hole (Press F)">🚀 Begin Horizon Plunge</button>
         <button class="btn quick-btn" id="btn-cinema-toggle" title="Toggle Cinema Mode (Press H)">👁️ Cinema View</button>
         <button class="btn quick-btn vr-btn" id="btn-webxr-vr" title="Enter WebXR VR with 360° Tracking & Astronaut Spacesuit Hand Tracking">🥽 WebXR VR & Hand Tracking</button>
@@ -62,6 +64,11 @@
                         <button class="btn" id="btn-mode-pov">🧑‍🚀 360° POV</button>
                     </div>
                 </div>
+                <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+                    <button class="btn active" id="btn-suit-sokol" style="flex: 1;" title="Franz Viehböck Sokol-KV2 Austrian Cosmonaut Suit">🇦🇹 Sokol-KV2</button>
+                    <button class="btn" id="btn-suit-axiom" style="flex: 1;" title="Axiom AxEMU Lunar Extravehicular Suit">🌙 AxEMU</button>
+                </div>
+                <button class="btn" id="btn-open-suit-sidebar" style="width: 100%; margin-bottom: 8px; border-color: var(--accent-gold); color: #fff;">🧑‍🚀 Open Sokol Suit 3D Inspector</button>
                 <div class="toggle-row">
                     <span>Astronaut Visor HUD</span>
                     <label class="toggle-switch">
@@ -278,6 +285,139 @@
                 <div class="spec-card">
                     <h3>6. Gravitational Time Dilation</h3>
                     <p>Clocks closer to the event horizon tick dramatically slower: $d\tau/dt = \sqrt{1 - 2r/\Sigma}$. Near Miller's planet orbit ($r \approx 1.05 r_g$), 1 hour equals 7 years on Earth.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Franz Viehböck Sokol-KV2 Space Suit 3D Photogrammetry Inspector Modal -->
+    <div class="modal" id="suit-modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <div>
+                    <h2>SOKOL-KV2 SPACESUIT INSPECTOR</h2>
+                    <p style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
+                        Authentic 3D Photogrammetry Scan of Austrian Cosmonaut Franz Viehböck's Suit (AustroMir-91, NHM Wien)
+                    </p>
+                </div>
+                <button class="modal-close-btn" id="suit-modal-close" title="Close Inspector (Esc)">&times;</button>
+            </div>
+
+            <div class="suit-modal-layout">
+                <!-- 3D Viewport Column -->
+                <div class="suit-viewport-container">
+                    <div id="suit-3d-canvas-wrap"></div>
+
+                    <!-- Loading Progress Overlay -->
+                    <div class="suit-loading-overlay" id="suit-loading-indicator">
+                        <div class="suit-spinner"></div>
+                        <div>LOADING PHOTOGRAMMETRY SCAN... <span id="suit-load-progress">0%</span></div>
+                    </div>
+
+                    <!-- Floating Render Mode Chips -->
+                    <div class="suit-floating-controls">
+                        <div class="suit-chip-group">
+                            <button class="suit-chip active" id="suit-chip-pbr">🌟 PBR Real</button>
+                            <button class="suit-chip" id="suit-chip-hologram">🌐 Hologram</button>
+                            <button class="suit-chip" id="suit-chip-xray">🦴 Biometric</button>
+                        </div>
+                        <div class="suit-chip-group">
+                            <button class="suit-chip" id="suit-chip-wireframe">📐 Wireframe</button>
+                            <button class="suit-chip active" id="suit-chip-autorotate">🔄 Auto-Rotate</button>
+                        </div>
+                    </div>
+
+                    <!-- Hotspot Quick Focus Bar -->
+                    <div class="suit-hotspot-bar">
+                        <button class="suit-hotspot-btn" id="suit-spot-overview">🛰️ Overview</button>
+                        <button class="suit-hotspot-btn" id="suit-spot-patch">🇦🇹 AustroMir Patch</button>
+                        <button class="suit-hotspot-btn" id="suit-spot-helmet">🪖 Sokol Helmet</button>
+                        <button class="suit-hotspot-btn" id="suit-spot-regulator">🎛️ Pressure Valve</button>
+                        <button class="suit-hotspot-btn" id="suit-spot-gloves">🧤 Sokol Gloves</button>
+                        <button class="suit-hotspot-btn" id="suit-spot-posture">🚀 Kazbek Couch</button>
+                    </div>
+                </div>
+
+                <!-- Telemetry & Hand Tracking Rig Sidebar -->
+                <div class="suit-info-sidebar">
+                    <!-- Hand Tracking Rig Card -->
+                    <div class="suit-info-card" style="border-color: rgba(0, 229, 255, 0.3);">
+                        <h3>
+                            <span>🧤 WebXR Hand Tracking Rig</span>
+                            <span class="hand-rig-status-badge" id="suit-rig-badge">25 JOINTS READY</span>
+                        </h3>
+                        <p style="font-size: 10.5px; color: var(--text-muted); line-height: 1.4; margin-bottom: 8px;">
+                            The Sokol flight gloves feature vulcanized high-friction textured palm grips and wrist tension straps. Click below to overlay the real-time 25-joint WebXR skeletal kinematics chain!
+                        </p>
+                        <button class="btn" id="suit-btn-hand-rig" style="width: 100%; border-color: var(--accent-cyan); color: #fff;">
+                            🦴 Toggle 25-Joint Glove Rig Overlay
+                        </button>
+                    </div>
+
+                    <!-- Technical Specifications Card -->
+                    <div class="suit-info-card">
+                        <h3><span>📋 Technical Specifications</span></h3>
+                        <table class="suit-spec-table">
+                            <tbody>
+                                <tr>
+                                    <td class="label">Cosmonaut:</td>
+                                    <td class="val">Franz Viehböck (AustroMir)</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Suit Designation:</td>
+                                    <td class="val">Sokol-KV2 (Сокол-КВ-2)</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Manufacturer:</td>
+                                    <td class="val">NPP Zvezda (НПП Звезда)</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Mission / Spacecraft:</td>
+                                    <td class="val">Soyuz TM-13 / Mir Station</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Launch Date:</td>
+                                    <td class="val">October 2, 1991</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Operating Pressure:</td>
+                                    <td class="val">0.4 atm (40 kPa pure O₂)</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Suit Mass:</td>
+                                    <td class="val">~10 kg (Flight Rescue)</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">3D Scan Triangles:</td>
+                                    <td class="val">200,000 Polygons</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Texture Atlas:</td>
+                                    <td class="val">2048 x 2048 Photogrammetric</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Curator / Archive:</td>
+                                    <td class="val">NHM Vienna (CC-BY-NC 4.0)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Cockpit Embodiment Activation Card -->
+                    <div class="suit-info-card" style="border-color: rgba(255, 170, 0, 0.3);">
+                        <h3><span>🚀 Spacecraft Embodiment</span></h3>
+                        <p style="font-size: 10.5px; color: var(--text-muted); line-height: 1.4; margin-bottom: 10px;">
+                            Set Franz Viehböck's Sokol space suit as your active body in the Gargantua cockpit and in 360° WebXR VR mode.
+                        </p>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn active" id="suit-btn-apply-body" style="flex: 1; border-color: var(--accent-gold); color: #fff;">
+                                🧑‍🚀 Active in Cockpit
+                            </button>
+                            <button class="btn vr-btn" id="suit-btn-launch-vr" style="flex: 1;">
+                                🥽 Launch WebXR VR
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

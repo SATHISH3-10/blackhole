@@ -80,6 +80,8 @@ uniform float u_showHorizon;
 uniform float u_showErgosphere;
 uniform float u_showISCO;
 uniform float u_helmetVisor;
+uniform float u_suitStyle; // 0.0: Axiom AxEMU, 1.0: Franz Viehböck Sokol-KV2
+uniform float u_cockpitView; // 0.0: standard, 1.0: seated cockpit astronaut body
 
 #define MAX_STEPS 200
 
@@ -483,6 +485,22 @@ SuitHit AstronautSuitSDF(vec3 p) {
         res = opUnion(res, SuitHit(dHandRBound, 1.0, p));
     }
 
+    // 4. Seated Kazbek Cockpit Couch Thighs & Knees (Soyuz TM-13 / Cockpit View)
+    if (u_cockpitView > 0.5) {
+        vec3 lKnee = vec3(-0.16, -0.42, 0.40);
+        vec3 rKnee = vec3(0.16, -0.42, 0.40);
+        vec3 lHip = vec3(-0.14, -0.60, 0.15);
+        vec3 rHip = vec3(0.14, -0.60, 0.15);
+        float dThighL = sdTaperedCapsule(p, lHip, lKnee, 0.070, 0.055);
+        float dThighR = sdTaperedCapsule(p, rHip, rKnee, 0.070, 0.055);
+        res = opUnion(res, SuitHit(min(dThighL, dThighR), 1.0, p));
+        
+        // Sokol Royal Blue Knee Restraint Bands
+        float dBandL = sdTorus(p - lKnee, vec2(0.058, 0.008));
+        float dBandR = sdTorus(p - rKnee, vec2(0.058, 0.008));
+        res = opUnion(res, SuitHit(min(dBandL, dBandR), 2.0, p));
+    }
+
     return res;
 }
 
@@ -516,8 +534,8 @@ vec3 RenderSuitShading(SuitHit hit, vec3 rayDirLocal) {
     vec3 spaceAmbient = vec3(0.12, 0.16, 0.22) * clamp(n.y * 0.5 + 0.5, 0.0, 1.0);
     vec3 totalLighting = directLED + spaceAmbient + diskBounce;
 
-    // Material 1: White Axiom Orthofabric
-    vec3 baseCol = vec3(0.96, 0.97, 0.99);
+    // Material 1: Suit Base Fabric
+    vec3 baseCol = (u_suitStyle > 0.5) ? vec3(0.93, 0.94, 0.96) : vec3(0.96, 0.97, 0.99);
     float specPower = 24.0;
     float specIntensity = 0.25;
 
@@ -526,8 +544,9 @@ vec3 RenderSuitShading(SuitHit hit, vec3 rayDirLocal) {
     baseCol -= weave;
 
     if (hit.matId > 1.5 && hit.matId < 2.5) {
-        // Material 2: Axiom Crimson Red Accent Seam Lines
-        baseCol = vec3(0.86, 0.08, 0.24);
+        // Material 2: Seam Lines & Restraint Bands
+        // Sokol-KV2: Royal Blue Tension Bands; AxEMU: Crimson Red
+        baseCol = (u_suitStyle > 0.5) ? vec3(0.06, 0.32, 0.86) : vec3(0.86, 0.08, 0.24);
         specPower = 36.0;
         specIntensity = 0.45;
     } else if (hit.matId > 2.5 && hit.matId < 3.5) {
@@ -537,13 +556,15 @@ vec3 RenderSuitShading(SuitHit hit, vec3 rayDirLocal) {
         specPower = 16.0;
         specIntensity = 0.18;
     } else if (hit.matId > 3.5 && hit.matId < 4.5) {
-        // Material 4: Dark Silicone Grip Pads on Palm & Fingers
-        baseCol = vec3(0.14, 0.16, 0.19);
-        specPower = 12.0;
-        specIntensity = 0.08;
+        // Material 4: Sokol Flight Glove Vulcanized Textured Palm & Finger Grips
+        float gripTexture = (sin(p.x * 320.0) * cos(p.z * 320.0)) * 0.04;
+        baseCol = vec3(0.12, 0.13, 0.15) + gripTexture;
+        specPower = 14.0;
+        specIntensity = 0.12;
     } else if (hit.matId > 4.5 && hit.matId < 5.5) {
-        // Material 5: Brushed Aluminum DCM & Titanium Ring Couplers
-        baseCol = vec3(0.82, 0.85, 0.90);
+        // Material 5: Metallic Couplers & Pressure Valves
+        // Sokol-KV2: Gold/Brass Neck Ring & Anodized Valve; AxEMU: Aluminum
+        baseCol = (u_suitStyle > 0.5) ? vec3(0.95, 0.78, 0.28) : vec3(0.82, 0.85, 0.90);
         specPower = 64.0;
         specIntensity = 0.95;
     } else if (hit.matId > 5.5 && hit.matId < 6.5) {
@@ -561,13 +582,23 @@ vec3 RenderSuitShading(SuitHit hit, vec3 rayDirLocal) {
         hudGlow += vec3(0.2, 0.9, 1.2) * border;
         return hudGlow;
     } else if (hit.matId > 6.5 && hit.matId < 7.5) {
-        // Material 7: Axiom "AX" Brand Logo Decal
-        baseCol = vec3(0.22, 0.25, 0.30);
+        // Material 7: Mission Insignia Decal
+        if (u_suitStyle > 0.5) {
+            // AustroMir-91 Austrian Flag Tricolor Patch (Red-White-Red)
+            float flagY = fract(p.y * 50.0);
+            if (flagY > 0.33 && flagY < 0.66) {
+                baseCol = vec3(0.98, 0.98, 0.98); // White stripe
+            } else {
+                baseCol = vec3(0.88, 0.10, 0.15); // Austrian Red stripe
+            }
+        } else {
+            baseCol = vec3(0.22, 0.25, 0.30); // AxEMU Decal
+        }
         specPower = 20.0;
         specIntensity = 0.30;
     } else if (hit.matId > 7.5) {
-        // Material 8: Light Ice-Blue / Powder-Blue Lunar Boot Soles
-        baseCol = vec3(0.75, 0.86, 0.99);
+        // Material 8: Flight Boots
+        baseCol = (u_suitStyle > 0.5) ? vec3(0.92, 0.93, 0.95) : vec3(0.75, 0.86, 0.99);
         specPower = 28.0;
         specIntensity = 0.25;
     }

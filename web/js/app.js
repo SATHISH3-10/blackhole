@@ -1,6 +1,7 @@
 import { KerrPhysics } from './physics.js';
 import { vertexShaderSource, fragmentShaderSource } from './shader.js';
 import { SpaceSoundSynthesizer } from './audio.js';
+import { SokolSuitViewer } from './suit-viewer.js';
 
 // Canonical 25 WebXR Hand Tracking Joints
 export const XR_HAND_JOINTS = [
@@ -191,6 +192,11 @@ class GargantuaApp {
         this.gyroMatrix = new Float32Array([1,0,0, 0,1,0, 0,0,1]);
         this.helmetVisor = true;
 
+        // Space Suit Embodiment & 3D Inspector State
+        this.suitViewer = null;
+        this.suitStyle = 'sokol'; // 'sokol' (Franz Viehböck) or 'axiom' (AxEMU)
+        this.cockpitView = true;
+
         // Desktop Mouse & Webcam Hand Tracking State
         this.mouseNormX = 0.0;
         this.mouseNormY = 0.0;
@@ -318,6 +324,8 @@ class GargantuaApp {
             u_showErgosphere: gl.getUniformLocation(this.program, 'u_showErgosphere'),
             u_showISCO: gl.getUniformLocation(this.program, 'u_showISCO'),
             u_helmetVisor: gl.getUniformLocation(this.program, 'u_helmetVisor'),
+            u_suitStyle: gl.getUniformLocation(this.program, 'u_suitStyle'),
+            u_cockpitView: gl.getUniformLocation(this.program, 'u_cockpitView'),
 
             // Universal 360° Desktop & WebXR Stereoscopic Ray System
             u_viewport: gl.getUniformLocation(this.program, 'u_viewport'),
@@ -477,6 +485,8 @@ class GargantuaApp {
                 this.toggleCinemaMode();
             } else if (e.key === 'v' || e.key === 'V') {
                 this.toggleVisor();
+            } else if (e.key === 'c' || e.key === 'C') {
+                this.toggleCockpitView();
             } else if (e.key === 'f' || e.key === 'F') {
                 this.toggleInfall();
             } else if (e.key === 'b' || e.key === 'B') {
@@ -645,6 +655,154 @@ class GargantuaApp {
         if (closeBtn && modal) {
             closeBtn.addEventListener('click', () => modal.classList.remove('open'));
         }
+
+        // Franz Viehböck Sokol-KV2 Space Suit 3D Inspector Modal
+        const suitModal = document.getElementById('suit-modal');
+        const openSuitBtn1 = document.getElementById('btn-suit-modal');
+        const openSuitBtn2 = document.getElementById('btn-open-suit-sidebar');
+        const closeSuitBtn = document.getElementById('suit-modal-close');
+
+        const openSuitInspector = () => {
+            if (suitModal) suitModal.classList.add('open');
+            if (!this.suitViewer) {
+                this.suitViewer = new SokolSuitViewer('suit-3d-canvas-wrap');
+            } else {
+                setTimeout(() => this.suitViewer.onWindowResize(), 50);
+            }
+        };
+
+        const closeSuitInspector = () => {
+            if (suitModal) suitModal.classList.remove('open');
+        };
+
+        if (openSuitBtn1) openSuitBtn1.addEventListener('click', openSuitInspector);
+        if (openSuitBtn2) openSuitBtn2.addEventListener('click', openSuitInspector);
+        if (closeSuitBtn) closeSuitBtn.addEventListener('click', closeSuitInspector);
+
+        // Cockpit Seated View Toggle
+        const cockpitBtn = document.getElementById('btn-cockpit-toggle');
+        if (cockpitBtn) {
+            cockpitBtn.addEventListener('click', () => this.toggleCockpitView());
+        }
+
+        // Suit Style Switching (Franz Viehböck Sokol-KV2 vs Axiom AxEMU)
+        const btnSokol = document.getElementById('btn-suit-sokol');
+        const btnAxiom = document.getElementById('btn-suit-axiom');
+        if (btnSokol) {
+            btnSokol.addEventListener('click', () => this.setSuitStyle('sokol'));
+        }
+        if (btnAxiom) {
+            btnAxiom.addEventListener('click', () => this.setSuitStyle('axiom'));
+        }
+
+        // Suit Modal Chips (PBR, Hologram, X-Ray, Wireframe, AutoRotate)
+        const bindChip = (id, callback) => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('click', callback);
+        };
+
+        bindChip('suit-chip-pbr', () => {
+            if (this.suitViewer) this.suitViewer.setRenderMode('pbr');
+            this.updateChipActive('suit-chip-pbr', ['suit-chip-pbr', 'suit-chip-hologram', 'suit-chip-xray']);
+        });
+
+        bindChip('suit-chip-hologram', () => {
+            if (this.suitViewer) this.suitViewer.setRenderMode('hologram');
+            this.updateChipActive('suit-chip-hologram', ['suit-chip-pbr', 'suit-chip-hologram', 'suit-chip-xray']);
+        });
+
+        bindChip('suit-chip-xray', () => {
+            if (this.suitViewer) this.suitViewer.setRenderMode('xray');
+            this.updateChipActive('suit-chip-xray', ['suit-chip-pbr', 'suit-chip-hologram', 'suit-chip-xray']);
+        });
+
+        bindChip('suit-chip-wireframe', () => {
+            if (this.suitViewer) {
+                const isWire = this.suitViewer.toggleWireframe();
+                const el = document.getElementById('suit-chip-wireframe');
+                if (el) el.classList.toggle('active', isWire);
+            }
+        });
+
+        bindChip('suit-chip-autorotate', () => {
+            if (this.suitViewer) {
+                const isAuto = this.suitViewer.toggleAutoRotate();
+                const el = document.getElementById('suit-chip-autorotate');
+                if (el) el.classList.toggle('active', isAuto);
+            }
+        });
+
+        // Hotspot Quick Focus Bar
+        const bindHotspot = (id, key) => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('click', () => {
+                if (this.suitViewer) this.suitViewer.focusHotspot(key);
+            });
+        };
+
+        bindHotspot('suit-spot-overview', 'overview');
+        bindHotspot('suit-spot-patch', 'patch');
+        bindHotspot('suit-spot-helmet', 'helmet');
+        bindHotspot('suit-spot-regulator', 'regulator');
+        bindHotspot('suit-spot-gloves', 'gloves');
+        bindHotspot('suit-spot-posture', 'posture');
+
+        // Hand Rig Overlay Button
+        const handRigBtn = document.getElementById('suit-btn-hand-rig');
+        if (handRigBtn) {
+            handRigBtn.addEventListener('click', () => {
+                if (this.suitViewer) {
+                    const isRig = this.suitViewer.toggleHandRig();
+                    handRigBtn.classList.toggle('active', isRig);
+                    handRigBtn.textContent = isRig ? '🦴 Hide 25-Joint Glove Rig Overlay' : '🦴 Toggle 25-Joint Glove Rig Overlay';
+                    const badge = document.getElementById('suit-rig-badge');
+                    if (badge) badge.textContent = isRig ? 'KINEMATICS ACTIVE' : '25 JOINTS READY';
+                }
+            });
+        }
+
+        // Apply as Active Cockpit Suit
+        const applyBodyBtn = document.getElementById('suit-btn-apply-body');
+        if (applyBodyBtn) {
+            applyBodyBtn.addEventListener('click', () => {
+                this.setSuitStyle('sokol');
+                this.toggleCockpitView(true);
+                closeSuitInspector();
+            });
+        }
+
+        // Launch WebXR from suit modal
+        const suitVrBtn = document.getElementById('suit-btn-launch-vr');
+        if (suitVrBtn) {
+            suitVrBtn.addEventListener('click', () => {
+                closeSuitInspector();
+                this.startXRSession();
+            });
+        }
+    }
+
+    updateChipActive(activeId, allIds) {
+        allIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('active', id === activeId);
+        });
+    }
+
+    toggleCockpitView(forcedState) {
+        this.cockpitView = (forcedState !== undefined) ? forcedState : !this.cockpitView;
+        const btn = document.getElementById('btn-cockpit-toggle');
+        if (btn) {
+            btn.textContent = this.cockpitView ? '🚀 Cockpit: ON' : '🚀 Cockpit: OFF';
+            btn.classList.toggle('active', this.cockpitView);
+        }
+    }
+
+    setSuitStyle(style) {
+        this.suitStyle = style;
+        const btnSokol = document.getElementById('btn-suit-sokol');
+        const btnAxiom = document.getElementById('btn-suit-axiom');
+        if (btnSokol) btnSokol.classList.toggle('active', style === 'sokol');
+        if (btnAxiom) btnAxiom.classList.toggle('active', style === 'axiom');
     }
 
     toggleVisor() {
@@ -1518,6 +1676,8 @@ class GargantuaApp {
         gl.uniform1f(this.uniforms.u_showErgosphere, this.overlays.ergosphere ? 1.0 : 0.0);
         gl.uniform1f(this.uniforms.u_showISCO, this.overlays.isco ? 1.0 : 0.0);
         gl.uniform1f(this.uniforms.u_helmetVisor, this.helmetVisor ? 1.0 : 0.0);
+        gl.uniform1f(this.uniforms.u_suitStyle, this.suitStyle === 'sokol' ? 1.0 : 0.0);
+        gl.uniform1f(this.uniforms.u_cockpitView, this.cockpitView ? 1.0 : 0.0);
 
         // Draw Fullscreen Quad
         gl.drawArrays(gl.TRIANGLES, 0, 6);
