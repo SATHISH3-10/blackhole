@@ -44,7 +44,171 @@ export class CockpitSuitLayer {
         this.onXRAction = null;
         this.baseSuitScale = new THREE.Vector3(1, 1, 1);
 
+        // Interactive Calibration & Fit State (Live Instant Updates)
+        this.defaultCalibration = {
+            distance: 1.27,  // target distance in meters (0.4m to 3.0m)
+            height: -1.04,   // Y position (-1.8m to -0.3m)
+            lateral: 0.0,    // X position (-0.5m to +0.5m)
+            scale: 0.42,     // Scale multiplier (0.2x to 1.0x)
+            recline: 0.0,    // Pitch angle (-35° to +35°)
+            extDist: 1.80    // External view distance
+        };
+        this.calibration = { ...this.defaultCalibration };
+        this.loadSavedCalibration();
+
+        // Third-View Surveillance Picture-in-Picture System
+        this.pipRenderer = null;
+        this.pipScene = null;
+        this.pipCamera = null;
+        this.pipSuitGroup = null;
+        this.pipMixer = null;
+
         this.init();
+    }
+
+    loadSavedCalibration() {
+        try {
+            const saved = localStorage.getItem('gargantua_suit_calib');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                Object.assign(this.calibration, parsed);
+            }
+        } catch (e) {
+            console.warn('Could not load saved suit calibration:', e);
+        }
+    }
+
+    saveCalibration() {
+        try {
+            localStorage.setItem('gargantua_suit_calib', JSON.stringify(this.calibration));
+        } catch (e) {
+            console.warn('Could not save suit calibration:', e);
+        }
+    }
+
+    resetCalibration() {
+        this.calibration = { ...this.defaultCalibration };
+        this.saveCalibration();
+    }
+
+    setCalibrationParam(key, value) {
+        if (this.calibration[key] !== undefined) {
+            this.calibration[key] = parseFloat(value);
+            this.saveCalibration();
+        }
+    }
+
+    applyCalibrationPreset(presetName) {
+        if (presetName === 'visor') {
+            this.calibration.distance = 0.85;
+            this.calibration.height = -1.04;
+            this.calibration.lateral = 0.0;
+            this.calibration.scale = 0.48;
+            this.calibration.recline = 0.0;
+        } else if (presetName === 'cockpit') {
+            this.calibration.distance = 1.27;
+            this.calibration.height = -1.04;
+            this.calibration.lateral = 0.0;
+            this.calibration.scale = 0.42;
+            this.calibration.recline = 0.0;
+        } else if (presetName === 'deep') {
+            this.calibration.distance = 1.95;
+            this.calibration.height = -1.04;
+            this.calibration.lateral = 0.0;
+            this.calibration.scale = 0.38;
+            this.calibration.recline = 10.0;
+        } else if (presetName === 'shoulder') {
+            this.calibration.distance = 1.65;
+            this.calibration.height = -0.70;
+            this.calibration.lateral = -0.32;
+            this.calibration.scale = 0.44;
+            this.calibration.recline = -5.0;
+        }
+        this.saveCalibration();
+    }
+
+    getSuitTransform(time = 0) {
+        const breath = Math.sin(time * 0.0018) * 0.006;
+        const camY = 0.22;
+        const targetDist = Math.max(0.35, this.calibration.distance);
+        
+        // Base line of sight vector from eyes (0, 0.22, 0) to standard chest/lap (0, -1.04, 0.16)
+        // delta = (0, -1.26, 0.16), length = 1.270157
+        const normY = -1.26 / 1.270157; // ~ -0.9920
+        const normZ = 0.16 / 1.270157;  // ~ 0.1260
+        
+        const heightShift = this.calibration.height - (-1.04);
+        const y = camY + (normY * targetDist) + heightShift + breath;
+        const z = normZ * targetDist;
+        const x = this.calibration.lateral;
+
+        return {
+            x: x,
+            y: y,
+            z: z,
+            scale: this.calibration.scale,
+            pitch: Math.PI + (this.calibration.recline * Math.PI / 180.0),
+            yaw: Math.PI,
+            distance: targetDist
+        };
+    }
+
+    getLiveDistance(isFirstPerson = true) {
+        if (isFirstPerson) {
+            const camY = 0.22;
+            const t = this.getSuitTransform(0);
+            const dx = t.x;
+            const dy = t.y - camY;
+            const dz = t.z;
+            return Math.sqrt(dx * dx + dy * dy + dz * dz);
+        } else {
+            return this.calibration.extDist;
+        }
+    }
+
+    dragAdjust(deltaX, deltaY, isFirstPerson = true) {
+        if (isFirstPerson) {
+            // Dragging vertically increases or decreases eye-to-suit distance instantly
+            const distDelta = -deltaY * 0.008;
+            this.calibration.distance = Math.max(0.40, Math.min(3.00, this.calibration.distance + distDelta));
+            // Dragging horizontally adjusts lateral placement
+            const xDelta = deltaX * 0.004;
+            this.calibration.lateral = Math.max(-0.50, Math.min(0.50, this.calibration.lateral + xDelta));
+            this.saveCalibration();
+            return this.getLiveDistance(true);
+        } else {
+            const distDelta = -deltaY * 0.012;
+            this.calibration.extDist = Math.max(0.80, Math.min(5.00, this.calibration.extDist + distDelta));
+            this.saveCalibration();
+            return this.calibration.extDist;
+        }
+    }
+
+    renderSurveillancePIP(pipCanvas, time = 0) {
+        if (!pipCanvas || !this.isLoaded || !this.suitModel) return;
+
+        if (!this.pipRenderer) {
+            const w = pipCanvas.clientWidth || 280;
+            const h = pipCanvas.clientHeight || 145;
+            this.pipRenderer = new THREE.WebGLRenderer({
+                canvas: pipCanvas,
+                alpha: false,
+                antialias: true
+            });
+            this.pipRenderer.setSize(w, h, false);
+            this.pipRenderer.setClearColor(0x060a14, 1.0);
+            this.pipRenderer.outputColorSpace = THREE.SRGBColorSpace;
+
+            this.pipCamera = new THREE.PerspectiveCamera(40, w / h, 0.1, 20);
+            this.pipCamera.position.set(1.4, 0.35, 1.8);
+            this.pipCamera.lookAt(0, -0.35, 0);
+        }
+
+        // Keep surveillance camera looking at suit location in the live scene
+        const t = this.getSuitTransform(time);
+        this.pipCamera.lookAt(t.x, t.y * 0.45, t.z * 0.5);
+
+        this.pipRenderer.render(this.scene, this.pipCamera);
     }
 
     init() {
@@ -275,14 +439,13 @@ export class CockpitSuitLayer {
         // headset camera.  A positive local Z puts the curled boots behind the
         // eyes, leaving the forward horizon/black hole unobstructed.  The lower
         // Y offset keeps the lap and boots visible only when the user looks down.
-        const bodyOffset = new THREE.Vector3(0.0, -1.04 + breath, 0.16).applyQuaternion(headRotation);
+        const t = this.getSuitTransform(time);
+        const bodyOffset = new THREE.Vector3(t.x, t.y, t.z).applyQuaternion(headRotation);
+        this.xrBodyGroup.scale.copy(this.baseSuitScale).multiplyScalar(t.scale);
         this.xrBodyGroup.position.copy(headPosition).add(bodyOffset);
         this.xrBodyGroup.quaternion.copy(headRotation);
-        // The Sketchfab loop uses the opposite vertical convention to the
-        // WebXR viewer. Flip the avatar once so its helmet is above the chest
-        // and its legs/arms fall into the user's downward field of view.
-        this.xrBodyGroup.rotateX(Math.PI);
-        this.xrBodyGroup.rotateY(Math.PI);
+        this.xrBodyGroup.rotateX(t.pitch);
+        this.xrBodyGroup.rotateY(t.yaw);
         this.xrBodyGroup.updateMatrixWorld(true);
         this.updateXRControlPanel(headMatrix, jointDataL, jointDataR, time);
         if (this.xrHandChains && jointDataL && jointDataR) {
@@ -501,19 +664,19 @@ export class CockpitSuitLayer {
             // Positioned slightly forward and below eye level:
             // The replacement animation is authored upright and already contains
             // its own floating pose; keep the chest/legs below the eye line.
-            this.suitBodyGroup.scale.copy(this.baseSuitScale).multiplyScalar(0.42);
-            this.suitBodyGroup.position.set(0.0, -1.04 + breath, 0.16);
-            this.suitBodyGroup.rotation.set(Math.PI, Math.PI, 0.0);
+            const t = this.getSuitTransform(time);
+            this.suitBodyGroup.scale.copy(this.baseSuitScale).multiplyScalar(t.scale);
+            this.suitBodyGroup.position.set(t.x, t.y, t.z);
+            this.suitBodyGroup.rotation.set(t.pitch, t.yaw, 0.0);
         } else {
             // External EVA Cosmonaut View (floating against Gargantua in Orbit Cam):
             // Camera looks forward at (0, 0, 0)
             this.camera.position.set(0.0, 0.0, 0.0);
             this.camera.rotation.set(0, 0, 0);
 
-            // Franz Viehböck floating gracefully in front of the camera:
+            // Floating gracefully in front of the camera at calibrated external distance:
             this.suitBodyGroup.scale.copy(this.baseSuitScale);
-            this.suitBodyGroup.position.set(0.35 + mouseNormX * 0.08, -0.22 + floatWave, -1.8);
-            // 3/4 angle facing camera with gentle zero-g tumbling rotation
+            this.suitBodyGroup.position.set(0.35 + mouseNormX * 0.08, -0.22 + floatWave, -this.calibration.extDist);
             const tumble = Math.sin(time * 0.0008) * 0.12;
             this.suitBodyGroup.rotation.set(0.15 + tumble * 0.5, 0.35 + tumble, tumble * 0.3);
         }

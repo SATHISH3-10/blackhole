@@ -14,9 +14,95 @@
     <!-- Authentic Franz Viehböck Sokol Space Suit 3D Cockpit & Hand Tracking Layer -->
     <canvas id="cockpit-canvas"></canvas>
 
+    <!-- Glass Viewfinder Optical Alignment Reticle (Shows live distance in First-Person) -->
+    <div id="suit-glass-reticle" class="suit-glass-reticle">
+        <div class="glass-ring">
+            <span class="tick tick-n"></span>
+            <span class="tick tick-s"></span>
+            <span class="tick tick-w"></span>
+            <span class="tick tick-e"></span>
+            <div class="glass-center-lens"></div>
+        </div>
+        <div class="reticle-readout">
+            <div class="readout-label">ALIGNMENT OPTIC</div>
+            <div class="readout-dist" id="glass-reticle-dist">1.27 m</div>
+        </div>
+    </div>
+
+    <!-- Interactive Suit Distance & Fit Calibration Studio -->
+    <div id="suit-calibrate-panel" class="suit-calibrate-panel glass-panel">
+        <div class="calibrate-header">
+            <div class="calibrate-title">
+                <span class="dot live"></span>
+                <span>SUIT FIT & DISTANCE STUDIO</span>
+            </div>
+            <button class="calibrate-close-btn" id="btn-calibrate-close" title="Close Panel (Esc)">&times;</button>
+        </div>
+
+        <!-- Large Real-time Distance Readout -->
+        <div class="calibrate-distance-card">
+            <div class="card-label">CURRENT EYE-TO-SUIT DISTANCE</div>
+            <div class="card-value" id="calib-readout-dist">1.27 m</div>
+            <div class="card-bar-wrap">
+                <div class="card-bar-fill" id="calib-readout-bar" style="width: 45%;"></div>
+            </div>
+        </div>
+
+        <!-- Third-View Surveillance Picture-in-Picture Preview -->
+        <div class="surveillance-pip-wrap" id="surveillance-pip-box" title="Drag directly here to adjust suit distance and position!">
+            <canvas id="surveillance-pip-canvas" width="280" height="145"></canvas>
+            <div class="surveillance-pip-overlay">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>● CAM-03 SURVEILLANCE</span>
+                    <span id="pip-clock">00:00:00</span>
+                </div>
+                <div style="text-align:center; opacity:0.8; font-size:8px;">◄ DRAG TO REPOSITION SUIT ►</div>
+            </div>
+        </div>
+
+        <!-- Interactive Parameter Controls -->
+        <div class="calib-controls">
+            <div class="calib-row">
+                <div class="calib-label"><span>Distance (Z)</span><span class="calib-val" id="val-calib-dist">1.27 m</span></div>
+                <input type="range" id="slider-calib-dist" min="0.40" max="3.00" step="0.02" value="1.27">
+            </div>
+            <div class="calib-row">
+                <div class="calib-label"><span>Height (Y)</span><span class="calib-val" id="val-calib-height">-1.04 m</span></div>
+                <input type="range" id="slider-calib-height" min="-1.60" max="-0.40" step="0.02" value="-1.04">
+            </div>
+            <div class="calib-row">
+                <div class="calib-label"><span>Lateral (X)</span><span class="calib-val" id="val-calib-lateral">0.00 m</span></div>
+                <input type="range" id="slider-calib-lateral" min="-0.40" max="0.40" step="0.02" value="0.00">
+            </div>
+            <div class="calib-row">
+                <div class="calib-label"><span>Suit Scale</span><span class="calib-val" id="val-calib-scale">100%</span></div>
+                <input type="range" id="slider-calib-scale" min="0.25" max="0.75" step="0.01" value="0.42">
+            </div>
+            <div class="calib-row">
+                <div class="calib-label"><span>Recline Tilt</span><span class="calib-val" id="val-calib-recline">0°</span></div>
+                <input type="range" id="slider-calib-recline" min="-25" max="25" step="1" value="0">
+            </div>
+        </div>
+
+        <!-- Quick Presets -->
+        <div class="calib-presets">
+            <button class="calib-preset-btn" data-preset="visor">🪖 Visor (0.85m)</button>
+            <button class="calib-preset-btn active" data-preset="cockpit">🚀 Standard (1.27m)</button>
+            <button class="calib-preset-btn" data-preset="deep">🛸 Deep (1.95m)</button>
+            <button class="calib-preset-btn" data-preset="shoulder">👁️ Shoulder</button>
+        </div>
+
+        <!-- Actions -->
+        <div class="calib-actions">
+            <button class="btn" id="btn-calib-reticle" style="flex:1;">🎯 Toggle Reticle</button>
+            <button class="btn" id="btn-calib-reset" style="flex:1;">🔄 Reset</button>
+        </div>
+    </div>
+
     <!-- Floating Quick Access Controls (Always visible in Cinema Mode) -->
     <div class="floating-quick-bar interactive">
         <button class="btn quick-btn suit-btn" id="btn-suit-modal" title="Open the Animated Floating Astronaut 3D Inspector">🧑‍🚀 Astronaut Suit 3D</button>
+        <button class="btn quick-btn calibrate-btn" id="btn-suit-calibrate" title="Adjust & Calibrate Space Suit Distance and Fit (Press P)">📐 Suit Distance & Fit</button>
         <button class="btn quick-btn cockpit-btn" id="btn-cockpit-toggle" title="Toggle Astronaut Cockpit Seated View (Press C)">🚀 Cockpit: OFF</button>
         <button class="btn quick-btn infall-btn" id="btn-infall-dive" title="Start the full 360° plunge into the black hole (Press F)">🚀 Begin Horizon Plunge</button>
         <button class="btn quick-btn" id="btn-cinema-toggle" title="Toggle Cinema Mode (Press H)">👁️ Cinema View</button>

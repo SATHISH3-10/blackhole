@@ -505,6 +505,8 @@ class GargantuaApp {
                 this.toggleCockpitView();
             } else if (e.key === 'f' || e.key === 'F') {
                 this.toggleInfall();
+            } else if (e.key === 'p' || e.key === 'P') {
+                this.toggleSuitCalibration();
             } else if (e.key === 'b' || e.key === 'B') {
                 this.applyPreset(this.camera.mode === 'pov' && this.camera.povPitch < -0.3 ? 'movie-ref' : 'suit-inspect');
             } else if (e.key === ' ') {
@@ -703,10 +705,99 @@ class GargantuaApp {
         if (openSuitBtn2) openSuitBtn2.addEventListener('click', openSuitInspector);
         if (closeSuitBtn) closeSuitBtn.addEventListener('click', closeSuitInspector);
 
-        // Cockpit Seated View Toggle
-        const cockpitBtn = document.getElementById('btn-cockpit-toggle');
-        if (cockpitBtn) {
-            cockpitBtn.addEventListener('click', () => this.toggleCockpitView());
+        // Cockpit Seated View Toggle
+        const cockpitBtn = document.getElementById('btn-cockpit-toggle');
+        if (cockpitBtn) {
+            cockpitBtn.addEventListener('click', () => this.toggleCockpitView());
+        }
+
+        // Space Suit Distance & Fit Calibration Studio
+        const calibToggleBtn = document.getElementById('btn-suit-calibrate');
+        if (calibToggleBtn) {
+            calibToggleBtn.addEventListener('click', () => this.toggleSuitCalibration());
+        }
+        const calibCloseBtn = document.getElementById('btn-calibrate-close');
+        if (calibCloseBtn) {
+            calibCloseBtn.addEventListener('click', () => this.toggleSuitCalibration(false));
+        }
+
+        // Calibration Sliders (instant feedback on input)
+        const bindCalibSlider = (id, paramKey) => {
+            const slider = document.getElementById(id);
+            if (slider) {
+                slider.addEventListener('input', (e) => {
+                    if (this.cockpitSuit) {
+                        this.cockpitSuit.setCalibrationParam(paramKey, e.target.value);
+                        this.syncSuitCalibrationUI();
+                    }
+                });
+            }
+        };
+        bindCalibSlider('slider-calib-dist', 'distance');
+        bindCalibSlider('slider-calib-height', 'height');
+        bindCalibSlider('slider-calib-lateral', 'lateral');
+        bindCalibSlider('slider-calib-scale', 'scale');
+        bindCalibSlider('slider-calib-recline', 'recline');
+
+        // Presets Buttons
+        document.querySelectorAll('.calib-preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const preset = btn.getAttribute('data-preset');
+                if (this.cockpitSuit && preset) {
+                    this.cockpitSuit.applyCalibrationPreset(preset);
+                    document.querySelectorAll('.calib-preset-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    this.syncSuitCalibrationUI();
+                }
+            });
+        });
+
+        // Reticle Viewfinder Toggle
+        const btnReticle = document.getElementById('btn-calib-reticle');
+        if (btnReticle) {
+            btnReticle.addEventListener('click', () => {
+                const reticle = document.getElementById('suit-glass-reticle');
+                if (reticle) reticle.classList.toggle('active');
+            });
+        }
+
+        // Calibration Reset
+        const btnResetCalib = document.getElementById('btn-calib-reset');
+        if (btnResetCalib) {
+            btnResetCalib.addEventListener('click', () => {
+                if (this.cockpitSuit) {
+                    this.cockpitSuit.resetCalibration();
+                    this.syncSuitCalibrationUI();
+                }
+            });
+        }
+
+        // Direct Mouse Drag on Third-View Surveillance Picture-in-Picture Preview
+        const pipBox = document.getElementById('surveillance-pip-box');
+        if (pipBox) {
+            let isPipDragging = false;
+            let lastPipX = 0, lastPipY = 0;
+            pipBox.addEventListener('pointerdown', (e) => {
+                isPipDragging = true;
+                lastPipX = e.clientX;
+                lastPipY = e.clientY;
+                pipBox.setPointerCapture(e.pointerId);
+            });
+            pipBox.addEventListener('pointermove', (e) => {
+                if (!isPipDragging || !this.cockpitSuit) return;
+                const dx = e.clientX - lastPipX;
+                const dy = e.clientY - lastPipY;
+                lastPipX = e.clientX;
+                lastPipY = e.clientY;
+                this.cockpitSuit.dragAdjust(dx, dy, this.camera.mode === 'pov');
+                this.syncSuitCalibrationUI();
+            });
+            const endPipDrag = (e) => {
+                isPipDragging = false;
+                try { pipBox.releasePointerCapture(e.pointerId); } catch (_) {}
+            };
+            pipBox.addEventListener('pointerup', endPipDrag);
+            pipBox.addEventListener('pointercancel', endPipDrag);
         }
 
         // Suit Style Switching (Franz Viehböck Sokol-KV2 vs Axiom AxEMU)
@@ -826,7 +917,72 @@ class GargantuaApp {
         const btn = document.getElementById('btn-cockpit-toggle');
         if (btn) {
             btn.textContent = this.cockpitView ? '🚀 Cockpit: ON' : '🚀 Cockpit: OFF';
-            btn.classList.toggle('active', this.cockpitView);
+            btn.classList.toggle('active', this.cockpitView);
+        }
+        const reticle = document.getElementById('suit-glass-reticle');
+        if (reticle && this.cockpitView) {
+            reticle.classList.add('active');
+        }
+    }
+
+    toggleSuitCalibration(forcedState) {
+        const panel = document.getElementById('suit-calibrate-panel');
+        const reticle = document.getElementById('suit-glass-reticle');
+        const btn = document.getElementById('btn-suit-calibrate');
+        if (!panel) return;
+        const willOpen = forcedState !== undefined ? forcedState : !panel.classList.contains('open');
+        panel.classList.toggle('open', willOpen);
+        if (btn) btn.classList.toggle('active', willOpen);
+        if (reticle) {
+            if (willOpen) reticle.classList.add('active');
+            else if (this.camera.mode !== 'pov') reticle.classList.remove('active');
+        }
+        if (willOpen) {
+            this.syncSuitCalibrationUI();
+        }
+    }
+
+    syncSuitCalibrationUI() {
+        if (!this.cockpitSuit) return;
+        const cal = this.cockpitSuit.calibration;
+        const isPOV = this.camera.mode === 'pov';
+        const liveDist = this.cockpitSuit.getLiveDistance(isPOV);
+
+        const distSlider = document.getElementById('slider-calib-dist');
+        const distVal = document.getElementById('val-calib-dist');
+        if (distSlider) distSlider.value = cal.distance.toFixed(2);
+        if (distVal) distVal.textContent = cal.distance.toFixed(2) + ' m';
+
+        const heightSlider = document.getElementById('slider-calib-height');
+        const heightVal = document.getElementById('val-calib-height');
+        if (heightSlider) heightSlider.value = cal.height.toFixed(2);
+        if (heightVal) heightVal.textContent = cal.height.toFixed(2) + ' m';
+
+        const lateralSlider = document.getElementById('slider-calib-lateral');
+        const lateralVal = document.getElementById('val-calib-lateral');
+        if (lateralSlider) lateralSlider.value = cal.lateral.toFixed(2);
+        if (lateralVal) lateralVal.textContent = cal.lateral.toFixed(2) + ' m';
+
+        const scaleSlider = document.getElementById('slider-calib-scale');
+        const scaleVal = document.getElementById('val-calib-scale');
+        if (scaleSlider) scaleSlider.value = cal.scale.toFixed(2);
+        if (scaleVal) scaleVal.textContent = Math.round(cal.scale / 0.42 * 100) + '%';
+
+        const reclineSlider = document.getElementById('slider-calib-recline');
+        const reclineVal = document.getElementById('val-calib-recline');
+        if (reclineSlider) reclineSlider.value = cal.recline.toFixed(0);
+        if (reclineVal) reclineVal.textContent = cal.recline.toFixed(0) + '°';
+
+        const readoutDist = document.getElementById('calib-readout-dist');
+        if (readoutDist) readoutDist.textContent = liveDist.toFixed(2) + ' m';
+
+        const reticleDist = document.getElementById('glass-reticle-dist');
+        if (reticleDist) reticleDist.textContent = liveDist.toFixed(2) + ' m';
+
+        const readoutBar = document.getElementById('calib-readout-bar');
+        if (readoutBar) {
+            const pct = Math.min(100, Math.max(8, ((liveDist - 0.4) / (3.0 - 0.4)) * 100));
+            readoutBar.style.width = pct + '%';
         }
     }
 
@@ -1791,9 +1947,36 @@ class GargantuaApp {
                 isDragging: this.isDragging,
                 mouseNormX: this.mouseNormX,
                 mouseNormY: this.mouseNormY,
-                time: time,
-                isVR: false
+                time: time,
+                isVR: false
             });
+
+            // Live Surveillance Third-View Rendering and Timecode
+            const calibPanel = document.getElementById('suit-calibrate-panel');
+            if (calibPanel && calibPanel.classList.contains('open')) {
+                const pipCanvas = document.getElementById('surveillance-pip-canvas');
+                if (pipCanvas) {
+                    this.cockpitSuit.renderSurveillancePIP(pipCanvas, time);
+                    const clockEl = document.getElementById('pip-clock');
+                    if (clockEl) {
+                        const totalSec = Math.floor(time * 0.001);
+                        const m = String(Math.floor(totalSec / 60) % 60).padStart(2, '0');
+                        const s = String(totalSec % 60).padStart(2, '0');
+                        const ds = Math.floor((time % 1000) / 100);
+                        clockEl.textContent = `00:${m}:${s}.${ds}`;
+                    }
+                }
+            }
+
+            // Keep the optical glass reticle live distance text synchronized
+            const reticle = document.getElementById('suit-glass-reticle');
+            if (reticle && reticle.classList.contains('active')) {
+                const reticleDist = document.getElementById('glass-reticle-dist');
+                if (reticleDist) {
+                    const d = this.cockpitSuit.getLiveDistance(this.camera.mode === 'pov');
+                    reticleDist.textContent = d.toFixed(2) + ' m';
+                }
+            }
         }
     }
 }
