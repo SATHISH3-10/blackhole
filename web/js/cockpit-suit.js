@@ -31,6 +31,10 @@ export class CockpitSuitLayer {
         this.showHandRig = false; // False by default so the authentic suit gloves are visible without distracting bare yellow spheres
         this.prevWidth = 0;
         this.prevHeight = 0;
+        this.xrScene = null;
+        this.xrCamera = null;
+        this.xrRenderer = null;
+        this.xrBodyGroup = null;
 
         this.init();
     }
@@ -56,25 +60,25 @@ export class CockpitSuitLayer {
         this.renderer.setSize(width, height);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.35;
+        this.renderer.toneMappingExposure = 1.0;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         // 4. Cockpit Lighting matching Gargantua's Accretion Disk
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
         this.scene.add(ambientLight);
 
         // Main Accretion Disk Key Light (Warm golden-amber glow)
-        this.keyLight = new THREE.DirectionalLight(0xffcc66, 3.8);
+        this.keyLight = new THREE.DirectionalLight(0xffcc66, 2.0);
         this.keyLight.position.set(2.0, 3.0, 1.5);
         this.scene.add(this.keyLight);
 
         // Cockpit Instrument Fill Light (Cyan HUD glow from below)
-        const instrumentLight = new THREE.DirectionalLight(0x00e5ff, 1.8);
+        const instrumentLight = new THREE.DirectionalLight(0x00e5ff, 0.9);
         instrumentLight.position.set(-1.5, -1.5, 1.5);
         this.scene.add(instrumentLight);
 
         // Front Rim Light for authentic fabric texture highlights
-        const frontLight = new THREE.DirectionalLight(0xffeedd, 2.0);
+        const frontLight = new THREE.DirectionalLight(0xffeedd, 1.0);
         frontLight.position.set(0, 1.0, 2.0);
         this.scene.add(frontLight);
 
@@ -145,10 +149,32 @@ export class CockpitSuitLayer {
             if (child.isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
+                const partName = (child.name + ' ' + (child.material?.name || '')).toLowerCase();
+                // The first-person camera is inside the helmet. Do not render
+                // the opaque shell around the camera; keep only a subtle visor.
+                if (/helmet/.test(partName) && !/visor|glass|lens/.test(partName)) {
+                    child.visible = false;
+                }
                 if (child.material) {
                     child.material.roughness = 0.55;
                     child.material.metalness = 0.15;
                     child.material.side = THREE.DoubleSide;
+                    // Tint both textured and untextured meshes. GLB textures
+                    // remain active, but the base color restores recognizable
+                    // Sokol-KV2 fabric/blue/charcoal accents in the preview.
+                    if (child.material.color) {
+                        const n = (child.name + ' ' + (child.material.name || '')).toLowerCase();
+                        if (/visor|glass|lens/.test(n)) child.material.color.set(0x314755);
+                        else if (/blue|stripe|band|patch/.test(n)) child.material.color.set(0x24527a);
+                        else if (/rubber|boot|glove|seal/.test(n)) child.material.color.set(0x353b42);
+                        else child.material.color.set(0xaebdca); // cool EVA fabric
+                    }
+                    if (/visor|glass|lens/.test(partName)) {
+                        child.material.transparent = true;
+                        child.material.opacity = 0.14;
+                        child.material.depthWrite = false;
+                        child.material.side = THREE.FrontSide;
+                    }
                 }
             }
         });
@@ -157,6 +183,63 @@ export class CockpitSuitLayer {
         this.isLoaded = true;
         this.isLoading = false;
         console.log('Franz Viehböck Sokol Space Suit is ready in Cockpit & EVA view!');
+    }
+
+    // Render the original GLB in the application's immersive XR framebuffer.
+    // The main raymarcher still renders the 25-joint articulated gloves.
+    renderXR(gl, canvas, xrView, xrViewport, active, time = 0) {
+        if (!active || !this.isLoaded) return;
+
+        if (!this.xrRenderer) {
+            this.xrScene = new THREE.Scene();
+            this.xrCamera = new THREE.PerspectiveCamera();
+            this.xrRenderer = new THREE.WebGLRenderer({ canvas, context: gl, alpha: true, antialias: false, powerPreference: 'high-performance' });
+            this.xrRenderer.autoClear = false;
+            this.xrRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+            this.xrRenderer.toneMappingExposure = 1.0;
+            this.xrRenderer.outputColorSpace = THREE.SRGBColorSpace;
+
+            const ambient = new THREE.AmbientLight(0xffffff, 0.85);
+            const key = new THREE.DirectionalLight(0xffcc66, 1.8);
+            key.position.set(2, 3, 1.5);
+            const fill = new THREE.DirectionalLight(0x00e5ff, 0.7);
+            fill.position.set(-1.5, -1, 1.5);
+            this.xrScene.add(ambient, key, fill);
+
+            this.xrBodyGroup = new THREE.Group();
+            this.xrBodyGroup.add(this.suitModel.clone(true));
+            this.xrBodyGroup.scale.copy(this.suitBodyGroup.scale);
+            this.xrScene.add(this.xrBodyGroup);
+        }
+
+        const breath = Math.sin(time * 0.0018) * 0.006;
+        // Anchor the suit below and slightly behind the live headset pose.
+        // This prevents the GLB from appearing as a giant floating helmet.
+        const headMatrix = new THREE.Matrix4().fromArray(xrView.transform.matrix);
+        const headPosition = new THREE.Vector3().setFromMatrixPosition(headMatrix);
+        const headRotation = new THREE.Quaternion().setFromRotationMatrix(headMatrix);
+        const bodyOffset = new THREE.Vector3(0, -0.72 + breath, -0.22).applyQuaternion(headRotation);
+        this.xrBodyGroup.position.copy(headPosition).add(bodyOffset);
+        this.xrBodyGroup.quaternion.copy(headRotation);
+        this.xrBodyGroup.rotateY(Math.PI);
+        this.xrCamera.projectionMatrix.fromArray(xrView.projectionMatrix);
+        this.xrCamera.projectionMatrixInverse.copy(this.xrCamera.projectionMatrix).invert();
+        // Use the headset's real pose directly. Head rotation and positional
+        // movement now drive the view without an artificial camera offset.
+        this.xrCamera.matrixWorld.fromArray(xrView.transform.matrix);
+        this.xrCamera.matrix.copy(this.xrCamera.matrixWorld);
+        this.xrCamera.matrixWorldInverse.copy(this.xrCamera.matrixWorld).invert();
+        this.xrCamera.matrixAutoUpdate = false;
+
+        // Preserve the raymarched colour buffer and clear only its depth.
+        this.xrRenderer.state.reset();
+        this.xrRenderer.setViewport(xrViewport.x, xrViewport.y, xrViewport.width, xrViewport.height);
+        this.xrRenderer.setScissor(xrViewport.x, xrViewport.y, xrViewport.width, xrViewport.height);
+        this.xrRenderer.setScissorTest(true);
+        this.xrRenderer.clearDepth();
+        this.xrRenderer.render(this.xrScene, this.xrCamera);
+        this.xrRenderer.setScissorTest(false);
+        this.xrRenderer.state.reset();
     }
 
     onResize() {
@@ -222,6 +305,7 @@ export class CockpitSuitLayer {
             // First-person cockpit embodiment:
             // Camera rotates with head/mouse look.
             // Suit body is anchored in the spacecraft seat.
+            this.camera.position.set(0.0, 0.22, 0.0);
             this.camera.rotation.set(pitch, yaw, 0.0, 'YXZ');
 
             // Suit body position & rotation:
@@ -232,6 +316,7 @@ export class CockpitSuitLayer {
         } else {
             // External EVA Cosmonaut View (floating against Gargantua in Orbit Cam):
             // Camera looks forward at (0, 0, 0)
+            this.camera.position.set(0.0, 0.0, 0.0);
             this.camera.rotation.set(0, 0, 0);
 
             // Franz Viehböck floating gracefully in front of the camera:

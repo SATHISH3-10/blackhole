@@ -82,6 +82,7 @@ uniform float u_showISCO;
 uniform float u_helmetVisor;
 uniform float u_suitStyle; // 0.0: Axiom AxEMU, 1.0: Franz Viehböck Sokol-KV2
 uniform float u_cockpitView; // 0.0: standard, 1.0: seated cockpit astronaut body
+uniform float u_renderSuitBody; // 0.0 when the real Sokol GLB is rendered in XR
 
 #define MAX_STEPS 200
 
@@ -412,7 +413,8 @@ SuitHit EvaluateSkinnedHand(vec3 p, vec3 j[25], bool isLeft) {
 SuitHit AstronautSuitSDF(vec3 p) {
     SuitHit res = SuitHit(1e5, 0.0, p);
 
-    // 1. Torso & Upper Chest Unit (Exact Bounding Sphere: center at (0, -0.45, 0.10))
+    // 1. Torso & Upper Chest Unit. XR uses the authentic GLB for this.
+    if (u_renderSuitBody > 0.5) {
     vec3 torsoCenter = vec3(0.0, -0.45, 0.10);
     float dTorsoBound = length(p - torsoCenter) - 0.28;
     if (dTorsoBound < 0.04) {
@@ -446,12 +448,16 @@ SuitHit AstronautSuitSDF(vec3 p) {
         res = opUnion(res, SuitHit(dTorsoBound, 1.0, p));
     }
 
+    }
+
     // 2. Forearm Sleeves with Charcoal Convolute Elbow Pleats & Red Racing Seams
     vec3 lWrist = u_jointsL[0];
     vec3 rWrist = u_jointsR[0];
     vec3 lElbow = vec3(-0.28, -0.34, 0.10);
     vec3 rElbow = vec3(0.28, -0.34, 0.10);
 
+    // The real GLB supplies sleeves in XR; dynamic gloves always remain here.
+    if (u_renderSuitBody > 0.5) {
     // Left Forearm Sleeve
     float dSleeveL = sdTaperedCapsule(p, lElbow, lWrist, 0.032, 0.024);
     res = opUnion(res, SuitHit(dSleeveL, 1.0, p));
@@ -463,6 +469,7 @@ SuitHit AstronautSuitSDF(vec3 p) {
     res = opUnion(res, SuitHit(dSleeveR, 1.0, p));
     float dRedArmR = sdCapsule(p, rElbow + vec3(0.022, 0.0, 0.0), rWrist + vec3(0.018, 0.0, 0.0), 0.003);
     res = opUnion(res, SuitHit(dRedArmR, 2.0, p));
+    }
 
     // 3. 25-Joint Skinned AxEMU Gloves (Exact Bounding Spheres)
     // Left Hand Bounding Sphere
@@ -486,7 +493,7 @@ SuitHit AstronautSuitSDF(vec3 p) {
     }
 
     // 4. Seated Kazbek Cockpit Couch Thighs & Knees (Soyuz TM-13 / Cockpit View)
-    if (u_cockpitView > 0.5) {
+    if (u_renderSuitBody > 0.5 && u_cockpitView > 0.5) {
         vec3 lKnee = vec3(-0.16, -0.42, 0.40);
         vec3 rKnee = vec3(0.16, -0.42, 0.40);
         vec3 lHip = vec3(-0.14, -0.60, 0.15);

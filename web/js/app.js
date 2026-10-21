@@ -332,6 +332,7 @@ class GargantuaApp {
             u_helmetVisor: gl.getUniformLocation(this.program, 'u_helmetVisor'),
             u_suitStyle: gl.getUniformLocation(this.program, 'u_suitStyle'),
             u_cockpitView: gl.getUniformLocation(this.program, 'u_cockpitView'),
+            u_renderSuitBody: gl.getUniformLocation(this.program, 'u_renderSuitBody'),
 
             // Universal 360° Desktop & WebXR Stereoscopic Ray System
             u_viewport: gl.getUniformLocation(this.program, 'u_viewport'),
@@ -362,6 +363,7 @@ class GargantuaApp {
         this.gestureState = new Float32Array([0, 0, 0, 0]);
         this.isPinchingLeft = false;
         this.isPinchingRight = false;
+        this.gestureControl = { lastTime: -1, rightWrist: null, span: 0 };
     }
 
     compileShader(type, source) {
@@ -581,8 +583,15 @@ class GargantuaApp {
         if (btnOrbit && btnPOV) {
             btnOrbit.addEventListener('click', () => {
                 this.camera.mode = 'orbit';
+                this.cockpitView = false;
+                this.autoOrbit = true;
                 btnOrbit.classList.add('active');
                 btnPOV.classList.remove('active');
+                const cockpitBtn = document.getElementById('btn-cockpit-toggle');
+                if (cockpitBtn) {
+                    cockpitBtn.textContent = '🚀 Cockpit: OFF';
+                    cockpitBtn.classList.remove('active');
+                }
             });
             btnPOV.addEventListener('click', () => {
                 this.camera.mode = 'pov';
@@ -797,6 +806,15 @@ class GargantuaApp {
 
     toggleCockpitView(forcedState) {
         this.cockpitView = (forcedState !== undefined) ? forcedState : !this.cockpitView;
+        // Cockpit embodiment is a first-person view. Prevent the GLB from
+        // appearing as a floating astronaut when the orbit camera is active.
+        if (this.cockpitView) {
+            this.camera.mode = 'pov';
+            this.autoOrbit = false;
+        } else {
+            this.camera.mode = 'orbit';
+            this.autoOrbit = true;
+        }
         const btn = document.getElementById('btn-cockpit-toggle');
         if (btn) {
             btn.textContent = this.cockpitView ? '🚀 Cockpit: ON' : '🚀 Cockpit: OFF';
@@ -1456,6 +1474,9 @@ class GargantuaApp {
         let localHandR_thb = [0, 0, 0];
 
         if (isVR && xrView) {
+            // Do not retain a pinch after Quest has lost optical hand tracking.
+            this.isPinchingLeft = false;
+            this.isPinchingRight = false;
             // WebXR View Matrix & Projection Matrix for Meta Quest
             const m = xrView.transform.matrix;
             const p = xrView.projectionMatrix;
@@ -1626,6 +1647,34 @@ class GargantuaApp {
             this.jointDataL[2] - this.jointDataR[2]
         );
 
+        // Gesture controls are intentionally evaluated once per XR frame, not
+        // once per eye. Right-pinch steers the encounter; pinching both hands
+        // and moving them apart/together changes observer distance.
+        if (isVR && this.gestureControl.lastTime !== time) {
+            const control = this.gestureControl;
+            if (this.isPinchingLeft && this.isPinchingRight) {
+                if (control.span > 0) {
+                    this.camera.distance = Math.max(this.physics.eventHorizonGM + 0.1, Math.min(120, this.camera.distance - (handSpan - control.span) * 7.5));
+                    this.physics.observerDistanceGM = this.camera.distance;
+                }
+                control.span = handSpan;
+                control.rightWrist = null;
+            } else if (this.isPinchingRight) {
+                const wrist = [this.jointDataR[0], this.jointDataR[1]];
+                if (control.rightWrist) {
+                    this.camera.phi -= (wrist[0] - control.rightWrist[0]) * 2.4;
+                    this.camera.theta = Math.max(0.02, Math.min(Math.PI - 0.02, this.camera.theta + (wrist[1] - control.rightWrist[1]) * 2.0));
+                    this.physics.observerInclinationDeg = this.camera.theta * 180 / Math.PI;
+                }
+                control.rightWrist = wrist;
+                control.span = 0;
+            } else {
+                control.rightWrist = null;
+                control.span = 0;
+            }
+            control.lastTime = time;
+        }
+
         gl.useProgram(this.program);
         gl.bindVertexArray(this.vao);
 
@@ -1686,11 +1735,16 @@ class GargantuaApp {
         gl.uniform1f(this.uniforms.u_showISCO, this.overlays.isco ? 1.0 : 0.0);
         gl.uniform1f(this.uniforms.u_helmetVisor, this.helmetVisor ? 1.0 : 0.0);
         gl.uniform1f(this.uniforms.u_suitStyle, this.suitStyle === 'sokol' ? 1.0 : 0.0);
-        const showSuit = this.cockpitView || this.camera.mode === 'pov' || isVR;
+        const showSuit = this.camera.mode === 'pov' || isVR;
         gl.uniform1f(this.uniforms.u_cockpitView, showSuit ? 1.0 : 0.0);
+        gl.uniform1f(this.uniforms.u_renderSuitBody, isVR ? 0.0 : 1.0);
 
         // Draw Fullscreen Quad
         gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        if (this.cockpitSuit && isVR && xrView) {
+            this.cockpitSuit.renderXR(gl, this.canvas, xrView, xrViewport, showSuit, time);
+        }
 
         // Update Authentic Franz Viehböck Sokol Space Suit Cockpit 3D Layer
         if (this.cockpitSuit && !isVR) {

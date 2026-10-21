@@ -309,6 +309,15 @@ export class SokolSuitViewer {
                             node.material.roughness = 0.65;
                             node.material.metalness = 0.15;
                             node.material.side = THREE.DoubleSide;
+                            // Apply a visible Sokol palette even when the
+                            // legacy specular-glossiness extension is ignored.
+                            if (node.material.color) {
+                                const name = `${node.name} ${node.material.name || ''}`.toLowerCase();
+                                if (/visor|glass|lens/.test(name)) node.material.color.set(0x314755);
+                                else if (/blue|stripe|band|patch/.test(name)) node.material.color.set(0x24527a);
+                                else if (/rubber|boot|glove|seal/.test(name)) node.material.color.set(0x353b42);
+                                else node.material.color.set(0xaebdca); // cool EVA fabric
+                            }
                         }
                     }
                 });
