@@ -304,7 +304,6 @@ export class SokolSuitViewer {
                         node.castShadow = true;
                         node.receiveShadow = true;
                         if (node.material) {
-                            this.originalMaterials.set(node, node.material.clone());
                             // Tune standard material properties for authentic fabric & metal appearance
                             node.material.roughness = 0.65;
                             node.material.metalness = 0.15;
@@ -316,8 +315,11 @@ export class SokolSuitViewer {
                                 if (/visor|glass|lens/.test(name)) node.material.color.set(0x314755);
                                 else if (/blue|stripe|band|patch/.test(name)) node.material.color.set(0x24527a);
                                 else if (/rubber|boot|glove|seal/.test(name)) node.material.color.set(0x353b42);
-                                else node.material.color.set(0xaebdca); // cool EVA fabric
+                                else node.material.color.set(0x6f899a); // cool EVA fabric
                             }
+                            // Store the corrected PBR material so selecting
+                            // the PBR chip does not restore the washed-out GLB.
+                            this.originalMaterials.set(node, node.material.clone());
                         }
                     }
                 });

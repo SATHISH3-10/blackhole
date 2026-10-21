@@ -167,7 +167,7 @@ export class CockpitSuitLayer {
                         if (/visor|glass|lens/.test(n)) child.material.color.set(0x314755);
                         else if (/blue|stripe|band|patch/.test(n)) child.material.color.set(0x24527a);
                         else if (/rubber|boot|glove|seal/.test(n)) child.material.color.set(0x353b42);
-                        else child.material.color.set(0xaebdca); // cool EVA fabric
+                        else child.material.color.set(0x6f899a); // cool EVA fabric
                     }
                     if (/visor|glass|lens/.test(partName)) {
                         child.material.transparent = true;
