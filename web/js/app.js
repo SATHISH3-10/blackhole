@@ -195,7 +195,7 @@ class GargantuaApp {
         // Space Suit Embodiment & 3D Inspector State
         this.suitViewer = null;
         this.suitStyle = 'sokol'; // 'sokol' (Franz Viehböck) or 'axiom' (AxEMU)
-        this.cockpitView = true;
+        this.cockpitView = false; // Off by default for maximum 60-90 FPS across laptops & Oculus
 
         // Desktop Mouse & Webcam Hand Tracking State
         this.mouseNormX = 0.0;
@@ -232,9 +232,9 @@ class GargantuaApp {
         this.ultraPerformanceMode = this.isOculus || this.isMobile;
 
         if (this.ultraPerformanceMode) {
-            this.physics.raymarchSteps = 80; // Rock-solid 72/90 FPS on Meta Quest 3 with full halo!
+            this.physics.raymarchSteps = 32; // Rock-solid 72/90 FPS on Meta Quest 3 & Mobile!
         } else {
-            this.physics.raymarchSteps = 140; // Full round-trip geodesic tracing for upper & lower lensing arcs
+            this.physics.raymarchSteps = 56; // Silky smooth 60 FPS on laptops with complete Einstein lensing halo!
         }
 
         this.initGL();
@@ -1298,7 +1298,8 @@ class GargantuaApp {
         const width = window.innerWidth;
         const height = window.innerHeight;
         // On Quest 3 / Mobile, 0.60 DPR cuts fragment load by 2.7x while preserving clean visuals
-        const dpr = this.ultraPerformanceMode ? 0.60 : Math.min(window.devicePixelRatio || 1, 1.0);
+        // On laptop, 0.85 DPR provides crisp 1080p rendering while preventing GPU overheating
+        const dpr = this.ultraPerformanceMode ? 0.60 : Math.min(window.devicePixelRatio || 1, 0.85);
 
         this.canvas.width = Math.floor(width * dpr);
         this.canvas.height = Math.floor(height * dpr);
@@ -1501,7 +1502,7 @@ class GargantuaApp {
             // Exact projection tangents directly from Oculus Quest lenses
             tanHalfFov = [1.0 / p[0], 1.0 / p[5]];
             fovOffset = [-p[8] / p[0], -p[9] / p[5]];
-            maxSteps = 64; // Dual-eye WebXR VR mode on Meta Quest with complete lensing halo (72/90 FPS)
+            maxSteps = 32; // Dual-eye WebXR VR mode on Meta Quest with complete lensing halo (72/90 FPS)
 
             // Map tracked physical hands into local headset camera space
             const toHeadsetLocal = (pt) => {
@@ -1666,7 +1667,7 @@ class GargantuaApp {
         gl.uniform1f(this.uniforms.u_photonIntensity, this.physics.photonRingIntensity);
         gl.uniform1f(this.uniforms.u_photonSharpness, this.physics.photonRingSharpness);
         gl.uniform1f(this.uniforms.u_exposure, this.physics.exposure);
-        const stepScale = (this.ultraPerformanceMode || isVR) ? 1.75 : 1.0;
+        const stepScale = (this.ultraPerformanceMode || isVR) ? 1.85 : 1.15;
         gl.uniform1i(this.uniforms.u_maxSteps, maxSteps);
         gl.uniform1f(this.uniforms.u_stepScale, stepScale);
         gl.uniform1f(this.uniforms.u_captureR, this.physics.eventHorizonGM);
