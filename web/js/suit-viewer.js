@@ -120,8 +120,8 @@ export class SokolSuitViewer {
         this.animate = this.animate.bind(this);
         this.animate();
 
-        // Load 3D Sokol Space Suit Model
-        this.loadModel('./assets/sokol_space_suit.glb');
+        // Load 3D Franz Viehböck Sokol Space Suit Model
+        this.loadModel('./assets/franz_viehbocks_sokol_space_suit.glb');
     }
 
     createSpecialMaterials() {

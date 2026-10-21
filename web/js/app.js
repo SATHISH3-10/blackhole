@@ -1697,15 +1697,14 @@ class GargantuaApp {
             this.cockpitSuit.update({
                 active: showSuit,
                 fov: this.camera.fov,
+                cameraMode: this.camera.mode,
                 pitch: this.camera.mode === 'pov' ? this.camera.povPitch : -0.22,
                 yaw: this.camera.mode === 'pov' ? this.camera.povYaw : 0.0,
                 isDragging: this.isDragging,
                 mouseNormX: this.mouseNormX,
                 mouseNormY: this.mouseNormY,
                 time: time,
-                isVR: false,
-                jointDataL: this.jointDataL,
-                jointDataR: this.jointDataR
+                isVR: false
             });
         }
     }
